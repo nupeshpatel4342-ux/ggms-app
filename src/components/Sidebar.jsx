@@ -1,10 +1,11 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ShoppingCart, Package, Users, Truck, Download, FileText, Settings, Store, LogOut, User } from 'lucide-react'
+import { LayoutDashboard, ShoppingCart, Package, Users, Truck, Download, FileText, Settings, Store, LogOut, User, History } from 'lucide-react'
 import { useAppContext } from '../context/AppContext'
 
 const navItems = [
   { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
   { name: 'Billing / POS', icon: ShoppingCart, path: '/pos' },
+  { name: 'Bill History', icon: History, path: '/bills' },
   { name: 'Inventory', icon: Package, path: '/inventory' },
   { name: 'Customers', icon: Users, path: '/customers' },
   { name: 'Suppliers', icon: Truck, path: '/suppliers' },

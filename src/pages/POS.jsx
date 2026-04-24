@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAppContext } from '../context/AppContext'
 import { Search, Plus, X, CircleCheckBig, Printer, UserPlus, Phone, ShoppingCart, Download, MessageCircle } from 'lucide-react'
-import jsPDF from 'jspdf'
+import { printBillPDF, shareBillWhatsApp, downloadBillPDF } from '../utils/billPdf'
 
 function QuickAddCustomerModal({ onAdd, onClose }) {
   const [form, setForm] = useState({ name: '', mobile: '' })
@@ -35,227 +35,143 @@ function QuickAddCustomerModal({ onAdd, onClose }) {
 }
 
 function BillPrintModal({ bill, customer, profile, onClose }) {
-  const printRef = useRef(null)
-
-  const generateHighQualityPDF = () => {
-    // Top-notch PDF generation using Helvetica (clean, modern sans-serif)
-    const itemHeight = bill.items.length * 6;
-    const totalHeight = 130 + itemHeight;
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, totalHeight] });
-    
-    let y = 8;
-    
-    const printCenter = (text, yPos, size, style = 'normal') => {
-      doc.setFont('helvetica', style);
-      doc.setFontSize(size);
-      const w = doc.getStringUnitWidth(text) * size / doc.internal.scaleFactor;
-      doc.text(text, (80 - w) / 2, yPos);
-    };
-
-    const printLeftRight = (left, right, yPos, size = 9, style = 'normal') => {
-      doc.setFont('helvetica', style);
-      doc.setFontSize(size);
-      doc.text(left, 4, yPos);
-      const w = doc.getStringUnitWidth(right) * size / doc.internal.scaleFactor;
-      doc.text(right, 76 - w, yPos);
-    };
-
-    const printLine = (yPos, type = 'solid') => {
-      if (type === 'dashed') {
-        doc.setLineDash([1, 1], 0);
-        doc.setLineWidth(0.3);
-      } else if (type === 'thick') {
-        doc.setLineDash([]);
-        doc.setLineWidth(0.6);
-      } else {
-        doc.setLineDash([]);
-        doc.setLineWidth(0.3);
-      }
-      doc.line(4, yPos, 76, yPos);
-      doc.setLineDash([]); // reset
-    };
-
-    printCenter(`Tax Invoice / Bill`, y, 8, 'bold');
-    y += 6;
-    printCenter(profile?.shopName || 'GGM&S Retail', y, 16, 'bold');
-    y += 4;
-    printCenter(`Ph: ${profile?.mobile || '9724557728'}`, y, 8);
-    y += 4;
-    printLine(y, 'thick');
-    y += 5;
-    
-    printLeftRight('Bill No:', bill.id, y, 9);
-    y += 5;
-    printLeftRight('Date:', new Date(bill.date).toLocaleString(), y, 9);
-    y += 5;
-    if (customer) {
-      printLeftRight('Customer:', customer.name, y, 9, 'bold');
-      y += 5;
-      if (customer.mobile) {
-        printLeftRight('Mobile:', customer.mobile, y, 9);
-        y += 5;
-      }
-    }
-    
-    y -= 1; // slight adjust
-    printLine(y, 'dashed');
-    y += 5;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.text('# Item', 4, y);
-    doc.text('Qty', 46, y, { align: 'right' });
-    doc.text('Rate', 59, y, { align: 'right' });
-    doc.text('Amt', 76, y, { align: 'right' });
-    y += 2;
-    printLine(y, 'dashed');
-    y += 5;
-    
-    doc.setFont('helvetica', 'normal');
-    bill.items.forEach((item, index) => {
-      // Clean modern font rendering
-      doc.text(`${index + 1}. ${item.name.substring(0, 18)}`, 4, y);
-      doc.text(`${item.quantity} ${item.unit || ''}`, 46, y, { align: 'right' });
-      doc.text(`${item.sellingPrice.toFixed(2)}`, 59, y, { align: 'right' });
-      doc.text(`${(item.quantity * item.sellingPrice).toFixed(2)}`, 76, y, { align: 'right' });
-      y += 5;
-    });
-    
-    y -= 1;
-    printLine(y, 'thick');
-    y += 5;
-    
-    printLeftRight('Subtotal', `Rs ${bill.subtotal.toFixed(2)}`, y, 10);
-    y += 5;
-    if (bill.tax > 0) {
-      printLeftRight('Tax (GST)', `Rs ${bill.tax.toFixed(2)}`, y, 9);
-      y += 5;
-    }
-    if (bill.discount > 0) {
-      printLeftRight('Discount', `-Rs ${bill.discount.toFixed(2)}`, y, 9);
-      y += 5;
-    }
-    
-    y -= 1;
-    printLine(y, 'dashed');
-    y += 6;
-    
-    printLeftRight('TOTAL', `Rs ${bill.total.toFixed(2)}`, y, 13, 'bold');
-    y += 3;
-    printLine(y, 'thick');
-    y += 6;
-    
-    printCenter(`Paid via ${bill.paymentMode}`, y, 10, 'bold');
-    y += 5;
-    printLine(y, 'dashed');
-    y += 6;
-    
-    printCenter('Thank You For Shopping With Us!', y, 9, 'bold');
-    y += 4;
-    printCenter('Visit Again', y, 8, 'italic');
-
-    return doc;
-  };
-
-  const handleWhatsApp = () => {
-    const doc = generateHighQualityPDF();
-    const pdfBlob = doc.output('blob');
-    const fileName = `Bill_${bill.id}.pdf`;
-    
-    if (navigator.canShare && navigator.canShare({ files: [new File([pdfBlob], fileName, { type: 'application/pdf' })] })) {
-      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
-      navigator.share({
-        files: [file],
-        title: `Bill ${bill.id}`,
-        text: `Here is your bill from ${profile?.shopName || 'GGM&S Retail'}`,
-      }).catch(err => console.log('Share failed:', err));
-    } else {
-      doc.save(fileName);
-      let text = `Here is your bill from *${profile?.shopName || 'GGM&S Retail'}*.\n\n_Please find the attached PDF._`;
-      let url = `https://wa.me/`;
-      if (customer && customer.mobile) {
-        url += `91${customer.mobile}?text=${encodeURIComponent(text)}`;
-      } else {
-        url += `?text=${encodeURIComponent(text)}`;
-      }
-      setTimeout(() => { window.open(url, '_blank') }, 500);
-    }
-  };
+  const totalQty = bill.items.reduce((s, i) => s + i.quantity, 0)
+  const rawTotal = bill.subtotal + (bill.tax || 0) - (bill.discount || 0)
+  const roundOff = (Math.round(rawTotal) - rawTotal).toFixed(2)
+  const halfTax = bill.tax > 0 ? (bill.tax / 2).toFixed(2) : null
 
   return (
     <div className="fixed inset-0 bg-black/60 flex flex-col items-center justify-center z-50 p-4">
-      {/* Top Bar with Close Button */}
       <div className="w-full max-w-[80mm] flex justify-end mb-2">
-        <button onClick={onClose} className="p-2 bg-white/20 text-white rounded-full hover:bg-white/40 transition-colors">
-          <X size={20} />
-        </button>
+        <button onClick={onClose} className="p-2 bg-white/20 text-white rounded-full hover:bg-white/40 transition-colors"><X size={20} /></button>
       </div>
 
-      {/* HTML Preview (Premium Clean UI matching PDF) */}
+      {/* HTML Preview - Professional Kirana Receipt */}
       <div className="bg-white shadow-2xl overflow-y-auto max-h-[60vh] flex-shrink-0 relative w-[80mm]">
-        <div id="print-area" ref={printRef} className="w-full p-4 bg-white text-black font-sans text-[12px] leading-snug">
-          <div className="text-center mb-4">
-            <p className="text-[10px] font-bold text-gray-600 tracking-widest uppercase mb-1">Tax Invoice</p>
-            <h3 className="text-2xl font-black uppercase tracking-tight my-1">{profile?.shopName || 'GGM&S Retail'}</h3>
-            <p className="text-[11px] font-medium mt-1">Ph: {profile?.mobile || '9724557728'}</p>
+        <div id="print-area" className="w-full px-3 py-4 bg-white text-black font-mono text-[11px] leading-tight">
+          {/* Header */}
+          <div className="text-center mb-2">
+            <p className="text-[8px] font-bold text-gray-500 tracking-[3px] uppercase">Tax Invoice</p>
+            <h3 className="text-[18px] font-black uppercase tracking-tight mt-1 mb-1">{profile?.shopName || 'GGM&S Retail'}</h3>
+            {profile?.address && <p className="text-[9px] text-gray-600 leading-snug mb-0.5">{profile.address}</p>}
+            {profile?.mobile && <p className="text-[10px] font-medium">Ph: {profile.mobile}</p>}
+            {profile?.gstin && <p className="text-[8px] font-bold text-gray-700 mt-0.5">GSTIN: {profile.gstin}</p>}
           </div>
-          
-          <div className="border-t-2 border-black py-2 mb-3 space-y-1">
+
+          {/* Double line */}
+          <div className="border-t-2 border-b-2 border-black my-2 h-[2px]" />
+
+          {/* Bill Info */}
+          <div className="py-1.5 space-y-0.5 text-[10px]">
             <div className="flex justify-between"><span>Bill No:</span><span className="font-bold">{bill.id}</span></div>
-            <div className="flex justify-between"><span>Date:</span><span className="font-medium">{new Date(bill.date).toLocaleString()}</span></div>
-            {customer && (
+            <div className="flex justify-between"><span>Date:</span><span>{new Date(bill.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>
+            <div className="flex justify-between"><span>Time:</span><span>{new Date(bill.date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</span></div>
+          </div>
+
+          {customer && (
+            <div className="border-t border-dashed border-gray-400 py-1.5 space-y-0.5 text-[10px]">
+              <div className="flex justify-between"><span>Customer:</span><span className="font-bold">{customer.name}</span></div>
+              {customer.mobile && <div className="flex justify-between"><span>Mobile:</span><span>{customer.mobile}</span></div>}
+            </div>
+          )}
+
+          {/* Items Header */}
+          <div className="border-t border-b border-black py-1 mt-1">
+            <div className="flex text-[8px] font-bold uppercase tracking-wide">
+              <span className="w-[8%]">SR</span>
+              <span className="flex-1">ITEM NAME</span>
+              <span className="w-[22%] text-right">AMOUNT</span>
+            </div>
+          </div>
+
+          {/* Items */}
+          <div className="py-1">
+            {bill.items.map((item, i) => {
+              const qtyStr = Number.isInteger(item.quantity) ? item.quantity : item.quantity.toFixed(2)
+              return (
+                <div key={i} className="mb-2">
+                  <div className="flex text-[10px]">
+                    <span className="w-[8%] text-gray-600">{i + 1}</span>
+                    <span className="flex-1 font-semibold">{item.name}</span>
+                    <span className="w-[22%] text-right font-bold">₹{(item.quantity * item.sellingPrice).toFixed(2)}</span>
+                  </div>
+                  <div className="flex text-[8px] text-gray-500 ml-[8%]">
+                    <span>{qtyStr} {item.unit || 'pcs'} × ₹{item.sellingPrice.toFixed(2)}</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Double line */}
+          <div className="border-t-2 border-b-2 border-black my-1 h-[2px]" />
+
+          {/* Item & Qty count */}
+          <p className="text-[8px] text-gray-500 py-1">Total Items: {bill.items.length} &nbsp;|&nbsp; Total Qty: {Number.isInteger(totalQty) ? totalQty : totalQty.toFixed(2)}</p>
+
+          {/* Totals */}
+          <div className="py-1 space-y-1 text-[10px]">
+            <div className="flex justify-between font-semibold"><span>Subtotal</span><span>₹{bill.subtotal.toFixed(2)}</span></div>
+            {halfTax && (
               <>
-                <div className="flex justify-between mt-2"><span>Customer:</span><span className="font-bold">{customer.name}</span></div>
-                {customer.mobile && <div className="flex justify-between"><span>Mobile:</span><span className="font-medium">{customer.mobile}</span></div>}
+                <div className="flex justify-between text-[9px] text-gray-600"><span>CGST (2.5%)</span><span>₹{halfTax}</span></div>
+                <div className="flex justify-between text-[9px] text-gray-600"><span>SGST (2.5%)</span><span>₹{halfTax}</span></div>
               </>
+            )}
+            {bill.discount > 0 && (
+              <div className="flex justify-between text-[9px] text-red-600"><span>Discount</span><span>-₹{bill.discount.toFixed(2)}</span></div>
+            )}
+            {Math.abs(parseFloat(roundOff)) >= 0.01 && (
+              <div className="flex justify-between text-[8px] text-gray-500"><span>Round Off</span><span>₹{roundOff}</span></div>
             )}
           </div>
 
-          <table className="w-full mb-3">
-            <thead>
-              <tr className="border-y border-black font-bold text-[11px]">
-                <th className="text-left py-2 w-[45%]">Item</th>
-                <th className="text-right py-2 w-[18%]">Qty</th>
-                <th className="text-right py-2 w-[17%]">Rate</th>
-                <th className="text-right py-2 w-[20%]">Amt</th>
-              </tr>
-            </thead>
-            <tbody className="text-[12px]">
-              {bill.items.map((item, i) => (
-                <tr key={i}>
-                  <td className="py-2 pr-1 font-medium">{i + 1}. {item.name}</td>
-                  <td className="py-2 text-right">{item.quantity}</td>
-                  <td className="py-2 text-right">{item.sellingPrice.toFixed(2)}</td>
-                  <td className="py-2 text-right font-bold">{(item.sellingPrice * item.quantity).toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <div className="border-t-2 border-black pt-2 space-y-1.5">
-            <div className="flex justify-between text-[13px] font-semibold"><span>Subtotal</span><span>₹{bill.subtotal.toFixed(2)}</span></div>
-            {bill.tax > 0 && <div className="flex justify-between text-[11px]"><span>Tax (GST)</span><span>₹{bill.tax.toFixed(2)}</span></div>}
-            {bill.discount > 0 && <div className="flex justify-between text-[11px]"><span>Discount</span><span>-₹{bill.discount.toFixed(2)}</span></div>}
-            <div className="flex justify-between border-t border-dashed border-gray-400 pt-2 mt-2 font-black text-[16px]"><span>TOTAL</span><span>₹{bill.total.toFixed(2)}</span></div>
-            <div className="border-t-2 border-black mt-2 pt-3 pb-1 text-center font-bold text-[14px]">
-              Paid via {bill.paymentMode}
+          {/* Grand Total */}
+          <div className="border-t-2 border-b-2 border-black py-2 my-1">
+            <div className="flex justify-between font-black text-[15px]">
+              <span>GRAND TOTAL</span>
+              <span>₹{bill.total.toFixed(2)}</span>
             </div>
           </div>
-          
-          <div className="border-t border-dashed border-gray-400 mt-3 pt-3 text-center text-[11px] font-medium space-y-1">
-            <p className="font-bold">Thank You For Shopping With Us!</p>
-            <p className="italic text-gray-600">Visit Again</p>
+
+          {/* Payment */}
+          <div className="text-center py-2 font-bold text-[11px]">
+            Paid by: {bill.paymentMode.toUpperCase()}
+          </div>
+
+          {/* Savings */}
+          {bill.discount > 0 && (
+            <div className="text-center py-1 border-t border-dashed border-gray-400">
+              <p className="text-[9px] font-bold text-green-700">★ You Saved ₹{bill.discount.toFixed(2)} on this bill! ★</p>
+            </div>
+          )}
+
+          {/* UPI */}
+          {profile?.upiId && bill.paymentMode !== 'Cash' && (
+            <div className="text-center py-1.5 border-t border-dashed border-gray-400">
+              <p className="text-[8px] text-gray-500">Pay via UPI:</p>
+              <p className="text-[9px] font-bold">{profile.upiId}</p>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="border-t border-dashed border-gray-400 mt-1 pt-2 text-center">
+            <p className="font-bold text-[10px]">Thank You! Visit Again!</p>
+            <p className="text-[7px] text-gray-500 mt-1.5 leading-relaxed">Goods once sold will not be taken back.<br/>Subject to local jurisdiction. E. & O.E.</p>
           </div>
         </div>
       </div>
 
-      {/* Action Buttons (Only 2) */}
-      <div className="flex gap-4 mt-6 w-full max-w-[80mm] justify-between">
-        <button onClick={handleWhatsApp} className="flex-1 flex justify-center items-center gap-2 py-3 bg-[#25D366] text-white rounded-lg hover:bg-[#1ebd5a] transition-colors shadow-lg font-bold text-lg">
-          <MessageCircle size={24} /> WhatsApp
+      {/* Action Buttons */}
+      <div className="flex gap-3 mt-5 w-full max-w-[80mm]">
+        <button onClick={() => shareBillWhatsApp(bill, customer, profile)} className="flex-1 flex justify-center items-center gap-2 py-3 bg-[#25D366] text-white rounded-lg hover:bg-[#1ebd5a] transition-colors shadow-lg font-bold text-sm">
+          <MessageCircle size={18} /> WhatsApp
         </button>
-        <button onClick={() => window.print()} className="flex-1 flex justify-center items-center gap-2 py-3 bg-[#002046] text-white rounded-lg hover:bg-[#1b365d] transition-colors shadow-lg font-bold text-lg">
-          <Printer size={24} /> Print
+        <button onClick={() => printBillPDF(bill, customer, profile)} className="flex-1 flex justify-center items-center gap-2 py-3 bg-[#002046] text-white rounded-lg hover:bg-[#1b365d] transition-colors shadow-lg font-bold text-sm">
+          <Printer size={18} /> Print
+        </button>
+        <button onClick={() => downloadBillPDF(bill, customer, profile)} className="flex justify-center items-center gap-2 py-3 px-4 bg-[#775a19] text-white rounded-lg hover:bg-[#5a4213] transition-colors shadow-lg font-bold text-sm">
+          <Download size={18} />
         </button>
       </div>
     </div>
@@ -296,7 +212,8 @@ export default function POS() {
       const existing = prev.findIndex(c => c.id === product.id)
       if (existing !== -1) {
         const updated = [...prev]
-        if (updated[existing].quantity < product.stock) updated[existing].quantity += 1
+        const step = ['kg', 'liter', 'gm'].includes(product.unit) ? 0.5 : 1
+        if (updated[existing].quantity + step <= product.stock) updated[existing].quantity = parseFloat((updated[existing].quantity + step).toFixed(3))
         return updated
       }
       return [...prev, { ...product, quantity: 1 }]
@@ -306,11 +223,20 @@ export default function POS() {
   const updateQty = (id, delta) => {
     setCart(prev => prev.map(c => {
       if (c.id !== id) return c
-      const newQty = c.quantity + delta
       const product = products.find(p => p.id === id)
-      if (newQty < 1 || (product && newQty > product.stock)) return c
+      const step = ['kg', 'liter', 'gm'].includes(c.unit) ? 0.5 : 1
+      const newQty = parseFloat((c.quantity + delta * step).toFixed(3))
+      if (newQty < 0.001 || (product && newQty > product.stock)) return c
       return { ...c, quantity: newQty }
     }).filter(c => c.quantity > 0))
+  }
+
+  const setDirectQty = (id, val) => {
+    const qty = parseFloat(val)
+    if (isNaN(qty) || qty < 0) return
+    const product = products.find(p => p.id === id)
+    if (product && qty > product.stock) return
+    setCart(prev => prev.map(c => c.id === id ? { ...c, quantity: qty } : c).filter(c => c.quantity > 0))
   }
 
   const removeFromCart = (id) => setCart(prev => prev.filter(c => c.id !== id))
@@ -383,9 +309,11 @@ export default function POS() {
                         <p className="text-xs text-slate-500">₹{item.sellingPrice} / {item.unit}</p>
                       </td>
                       <td className="py-3">
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center justify-center gap-1">
                           <button onClick={() => updateQty(item.id, -1)} className="w-7 h-7 rounded bg-slate-200 text-[#002046] font-bold hover:bg-slate-300 transition-colors">−</button>
-                          <span className="font-bold text-[#002046] w-8 text-center">{item.quantity}</span>
+                          <input type="number" min="0.001" step={['kg','liter','gm'].includes(item.unit) ? '0.5' : '1'} value={item.quantity}
+                            onChange={e => setDirectQty(item.id, e.target.value)}
+                            className="w-14 text-center font-bold text-[#002046] border border-slate-300 rounded py-1 text-sm focus:outline-none focus:border-[#002046]" />
                           <button onClick={() => updateQty(item.id, 1)} className="w-7 h-7 rounded bg-slate-200 text-[#002046] font-bold hover:bg-slate-300 transition-colors">+</button>
                         </div>
                       </td>

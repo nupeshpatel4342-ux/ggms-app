@@ -28,6 +28,7 @@ function sanitizeProduct(p) {
     stock: Math.max(0, parseFloat(p.stock) || 0),
     unit: String(p.unit ?? 'pcs'),
     barcode: String(p.barcode ?? ''),
+    expiryDate: p.expiryDate ? String(p.expiryDate) : '',
   }
 }
 
@@ -48,6 +49,7 @@ function sanitizeSupplier(s) {
     id: String(s.id ?? Date.now()),
     name: String(s.name ?? 'Unknown Supplier'),
     contact: String(s.contact ?? ''),
+    address: String(s.address ?? ''),
     pendingPayment: Math.max(0, parseFloat(s.pendingPayment) || 0),
   }
 }
@@ -58,7 +60,8 @@ function sanitizeBillItem(item) {
     id: String(item.id ?? ''),
     name: String(item.name ?? 'Item'),
     sellingPrice: Math.max(0, parseFloat(item.sellingPrice) || 0),
-    quantity: Math.max(1, parseInt(item.quantity) || 1),
+    purchasePrice: Math.max(0, parseFloat(item.purchasePrice) || 0),
+    quantity: Math.max(0.001, parseFloat(item.quantity) || 1),
     unit: String(item.unit ?? 'pcs'),
     category: String(item.category ?? ''),
     gstRate: Math.max(0, parseFloat(item.gstRate) || 0),
@@ -79,6 +82,7 @@ function sanitizeBill(b) {
     discount: Math.max(0, parseFloat(b.discount) || 0),
     total: Math.max(0, parseFloat(b.total) || 0),
     udharAmount: Math.max(0, parseFloat(b.udharAmount) || 0),
+    status: b.status === 'void' ? 'void' : 'active',
   }
 }
 
@@ -87,7 +91,7 @@ function sanitizePurchaseItem(item) {
   return {
     productId: String(item.productId ?? ''),
     name: String(item.name ?? 'Item'),
-    quantity: Math.max(0, parseInt(item.quantity) || 0),
+    quantity: Math.max(0, parseFloat(item.quantity) || 0),
     price: Math.max(0, parseFloat(item.price) || 0),
   }
 }
@@ -103,6 +107,19 @@ function sanitizePurchase(p) {
     total: Math.max(0, parseFloat(p.total) || 0),
     paidAmount: Math.max(0, parseFloat(p.paidAmount) || 0),
     pendingAmount: Math.max(0, parseFloat(p.pendingAmount) || 0),
+  }
+}
+
+function sanitizeStockAdjustment(a) {
+  if (!a || typeof a !== 'object') return null
+  return {
+    id: String(a.id ?? Date.now()),
+    productId: String(a.productId ?? ''),
+    productName: String(a.productName ?? ''),
+    type: ['add', 'remove'].includes(a.type) ? a.type : 'remove',
+    quantity: Math.max(0, parseFloat(a.quantity) || 0),
+    reason: String(a.reason ?? ''),
+    date: a.date ? String(a.date) : new Date().toISOString(),
   }
 }
 
@@ -132,11 +149,11 @@ function sanitizeCategories(arr) {
 
 // Default data
 const DEFAULT_PRODUCTS = [
-  { id: '1', name: 'Premium Basmati Rice', category: 'Grocery', purchasePrice: 80, sellingPrice: 110, stock: 120, unit: 'kg', barcode: '890123456001' },
-  { id: '2', name: 'Refined Sunflower Oil', category: 'Oil', purchasePrice: 130, sellingPrice: 155, stock: 45, unit: 'liter', barcode: '890123456002' },
-  { id: '3', name: 'Tata Salt', category: 'Grocery', purchasePrice: 18, sellingPrice: 24, stock: 80, unit: 'kg', barcode: '890123456003' },
-  { id: '4', name: 'Aashirvaad Atta 5kg', category: 'Grocery', purchasePrice: 190, sellingPrice: 230, stock: 3, unit: 'pcs', barcode: '890123456004' },
-  { id: '5', name: 'Haldiram Moong Dal', category: 'Snacks', purchasePrice: 35, sellingPrice: 50, stock: 10, unit: 'pcs', barcode: '890123456005' },
+  { id: '1', name: 'Premium Basmati Rice', category: 'Grocery', purchasePrice: 80, sellingPrice: 110, stock: 120, unit: 'kg', barcode: '890123456001', expiryDate: '' },
+  { id: '2', name: 'Refined Sunflower Oil', category: 'Oil', purchasePrice: 130, sellingPrice: 155, stock: 45, unit: 'liter', barcode: '890123456002', expiryDate: '' },
+  { id: '3', name: 'Tata Salt', category: 'Grocery', purchasePrice: 18, sellingPrice: 24, stock: 80, unit: 'kg', barcode: '890123456003', expiryDate: '' },
+  { id: '4', name: 'Aashirvaad Atta 5kg', category: 'Grocery', purchasePrice: 190, sellingPrice: 230, stock: 3, unit: 'pcs', barcode: '890123456004', expiryDate: '' },
+  { id: '5', name: 'Haldiram Moong Dal', category: 'Snacks', purchasePrice: 35, sellingPrice: 50, stock: 10, unit: 'pcs', barcode: '890123456005', expiryDate: '' },
 ]
 
 const DEFAULT_CUSTOMERS = [
@@ -146,8 +163,8 @@ const DEFAULT_CUSTOMERS = [
 ]
 
 const DEFAULT_SUPPLIERS = [
-  { id: '1', name: 'Agrawal Distributors', contact: '9000100011', pendingPayment: 5400 },
-  { id: '2', name: 'MegaMart Wholesale', contact: '9000100022', pendingPayment: 0 },
+  { id: '1', name: 'Agrawal Distributors', contact: '9000100011', address: '', pendingPayment: 5400 },
+  { id: '2', name: 'MegaMart Wholesale', contact: '9000100022', address: '', pendingPayment: 0 },
 ]
 
 const DEFAULT_CATEGORIES = ['Grocery', 'Oil', 'Snacks', 'Spices', 'Beverages', 'Dairy', 'Other']
@@ -171,6 +188,7 @@ export function AppProvider({ children }) {
   const [suppliers, setSuppliers] = useState(() => sanitizeArray(loadFromStorage('ggms_suppliers', DEFAULT_SUPPLIERS), sanitizeSupplier))
   const [bills, setBills] = useState(() => sanitizeArray(loadFromStorage('ggms_bills', []), sanitizeBill))
   const [purchases, setPurchases] = useState(() => sanitizeArray(loadFromStorage('ggms_purchases', []), sanitizePurchase))
+  const [stockAdjustments, setStockAdjustments] = useState(() => sanitizeArray(loadFromStorage('ggms_stock_adjustments', []), sanitizeStockAdjustment))
 
   useEffect(() => saveToStorage('ggms_profile', profile), [profile])
   useEffect(() => saveToStorage('ggms_categories', categories), [categories])
@@ -179,6 +197,7 @@ export function AppProvider({ children }) {
   useEffect(() => saveToStorage('ggms_suppliers', suppliers), [suppliers])
   useEffect(() => saveToStorage('ggms_bills', bills), [bills])
   useEffect(() => saveToStorage('ggms_purchases', purchases), [purchases])
+  useEffect(() => saveToStorage('ggms_stock_adjustments', stockAdjustments), [stockAdjustments])
 
   const value = {
     profile,
@@ -190,6 +209,9 @@ export function AppProvider({ children }) {
       if (trimmed && !categories.includes(trimmed)) {
         setCategories(prev => [...prev, trimmed])
       }
+    },
+    deleteCategory: (name) => {
+      setCategories(prev => prev.filter(c => c !== name))
     },
 
     products,
@@ -225,6 +247,14 @@ export function AppProvider({ children }) {
       const sup = sanitizeSupplier({ ...s, id: Date.now().toString(), pendingPayment: 0 })
       if (sup) setSuppliers(prev => [...prev, sup])
     },
+    updateSupplier: (id, data) => {
+      setSuppliers(prev => prev.map(s => s.id === String(id) ? sanitizeSupplier({ ...s, ...data }) ?? s : s))
+    },
+    deleteSupplier: (id) => setSuppliers(prev => prev.filter(s => s.id !== String(id))),
+    settleSupplierPayment: (id, amount) => {
+      const amt = Math.max(0, parseFloat(amount) || 0)
+      setSuppliers(prev => prev.map(s => s.id === String(id) ? { ...s, pendingPayment: Math.max(0, s.pendingPayment - amt) } : s))
+    },
 
     bills,
     processBill: (billData) => {
@@ -235,7 +265,7 @@ export function AppProvider({ children }) {
         const updated = prev.map(p => ({ ...p }))
         billData.items.forEach(item => {
           const idx = updated.findIndex(p => p.id === String(item.id))
-          if (idx !== -1) updated[idx].stock = Math.max(0, updated[idx].stock - (parseInt(item.quantity) || 0))
+          if (idx !== -1) updated[idx].stock = Math.max(0, updated[idx].stock - (parseFloat(item.quantity) || 0))
         })
         return updated
       })
@@ -250,12 +280,34 @@ export function AppProvider({ children }) {
         ...billData,
         id: 'BILL-' + Date.now().toString().slice(-6),
         date: new Date().toISOString(),
+        status: 'active',
       })
       if (bill) {
         setBills(prev => [bill, ...prev])
         return bill
       }
       return null
+    },
+    voidBill: (billId) => {
+      setBills(prev => prev.map(b => {
+        if (b.id === billId && b.status !== 'void') {
+          // Restore stock for voided bill
+          setProducts(prods => {
+            const updated = prods.map(p => ({ ...p }))
+            b.items.forEach(item => {
+              const idx = updated.findIndex(p => p.id === String(item.id))
+              if (idx !== -1) updated[idx].stock += parseFloat(item.quantity) || 0
+            })
+            return updated
+          })
+          // Remove udhar if was Udhar bill
+          if (b.paymentMode === 'Udhar' && b.customerId) {
+            setCustomers(custs => custs.map(c => c.id === String(b.customerId) ? { ...c, udhar: Math.max(0, c.udhar - b.total) } : c))
+          }
+          return { ...b, status: 'void' }
+        }
+        return b
+      }))
     },
 
     purchases,
@@ -267,7 +319,7 @@ export function AppProvider({ children }) {
         const updated = prev.map(p => ({ ...p }))
         purchaseData.items.forEach(item => {
           const idx = updated.findIndex(p => p.id === String(item.productId))
-          if (idx !== -1) updated[idx].stock += Math.max(0, parseInt(item.quantity) || 0)
+          if (idx !== -1) updated[idx].stock += Math.max(0, parseFloat(item.quantity) || 0)
         })
         return updated
       })
@@ -284,6 +336,78 @@ export function AppProvider({ children }) {
         date: new Date().toISOString(),
       })
       if (purchase) setPurchases(prev => [purchase, ...prev])
+    },
+
+    stockAdjustments,
+    addStockAdjustment: (adjustment) => {
+      const adj = sanitizeStockAdjustment({ ...adjustment, id: Date.now().toString(), date: new Date().toISOString() })
+      if (!adj) return
+
+      // Update product stock
+      setProducts(prev => prev.map(p => {
+        if (p.id === adj.productId) {
+          const newStock = adj.type === 'add'
+            ? p.stock + adj.quantity
+            : Math.max(0, p.stock - adj.quantity)
+          return { ...p, stock: newStock }
+        }
+        return p
+      }))
+
+      setStockAdjustments(prev => [adj, ...prev])
+    },
+
+    // Data backup & restore
+    exportAllData: () => {
+      const data = {
+        version: '1.0',
+        exportDate: new Date().toISOString(),
+        profile: loadFromStorage('ggms_profile', DEFAULT_PROFILE),
+        categories: loadFromStorage('ggms_categories', DEFAULT_CATEGORIES),
+        products: loadFromStorage('ggms_products', DEFAULT_PRODUCTS),
+        customers: loadFromStorage('ggms_customers', DEFAULT_CUSTOMERS),
+        suppliers: loadFromStorage('ggms_suppliers', DEFAULT_SUPPLIERS),
+        bills: loadFromStorage('ggms_bills', []),
+        purchases: loadFromStorage('ggms_purchases', []),
+        stockAdjustments: loadFromStorage('ggms_stock_adjustments', []),
+      }
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `GGMS_Backup_${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    },
+    importAllData: (jsonData) => {
+      try {
+        const data = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData
+        if (!data || !data.version) throw new Error('Invalid backup file')
+
+        if (data.profile) setProfile(sanitizeProfile(data.profile))
+        if (data.categories) setCategories(sanitizeCategories(data.categories))
+        if (data.products) setProducts(sanitizeArray(data.products, sanitizeProduct))
+        if (data.customers) setCustomers(sanitizeArray(data.customers, sanitizeCustomer))
+        if (data.suppliers) setSuppliers(sanitizeArray(data.suppliers, sanitizeSupplier))
+        if (data.bills) setBills(sanitizeArray(data.bills, sanitizeBill))
+        if (data.purchases) setPurchases(sanitizeArray(data.purchases, sanitizePurchase))
+        if (data.stockAdjustments) setStockAdjustments(sanitizeArray(data.stockAdjustments, sanitizeStockAdjustment))
+
+        return true
+      } catch (err) {
+        console.error('Import failed:', err)
+        return false
+      }
+    },
+    resetAllData: () => {
+      setProfile(sanitizeProfile(DEFAULT_PROFILE))
+      setCategories([...DEFAULT_CATEGORIES])
+      setProducts(DEFAULT_PRODUCTS.map(p => sanitizeProduct(p)))
+      setCustomers(DEFAULT_CUSTOMERS.map(c => sanitizeCustomer(c)))
+      setSuppliers(DEFAULT_SUPPLIERS.map(s => sanitizeSupplier(s)))
+      setBills([])
+      setPurchases([])
+      setStockAdjustments([])
     },
   }
 

@@ -1,14 +1,16 @@
 import { useState, useRef } from 'react'
 import { useAppContext } from '../context/AppContext'
-import { Camera, Phone, MapPin, Shield, Store, Save, CircleCheckBig, Plus, X } from 'lucide-react'
+import { Camera, Phone, MapPin, Shield, Store, Save, CircleCheckBig, Plus, X, User, Download, Upload, Trash2 } from 'lucide-react'
 
 export default function Settings() {
-  const { profile, updateProfile, categories, addCategory } = useAppContext()
+  const { profile, updateProfile, categories, addCategory, deleteCategory, exportAllData, importAllData, resetAllData } = useAppContext()
   const [saved, setSaved] = useState(false)
   const [tab, setTab] = useState('profile')
   const [newCat, setNewCat] = useState('')
   const [showNewCat, setShowNewCat] = useState(false)
+  const [importStatus, setImportStatus] = useState(null)
   const fileRef = useRef(null)
+  const importRef = useRef(null)
   const [form, setForm] = useState({
     ownerName: profile.ownerName || '',
     shopName: profile.shopName || '',
@@ -41,6 +43,19 @@ export default function Settings() {
     }
   }
 
+  const handleImport = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const success = importAllData(ev.target.result)
+      setImportStatus(success ? 'success' : 'error')
+      setTimeout(() => setImportStatus(null), 3000)
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
   return (
     <div>
       <div className="mb-6">
@@ -49,7 +64,7 @@ export default function Settings() {
       </div>
 
       <div className="flex gap-1 mb-6 border-b border-slate-200">
-        {[{ id: 'profile', label: 'Profile' }, { id: 'store', label: 'Store Info' }, { id: 'categories', label: 'Categories' }, { id: 'preferences', label: 'Preferences' }].map(t => (
+        {[{ id: 'profile', label: 'Profile' }, { id: 'store', label: 'Store Info' }, { id: 'categories', label: 'Categories' }, { id: 'preferences', label: 'Preferences' }, { id: 'backup', label: 'Backup & Data' }].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`px-5 py-3 text-sm font-semibold border-b-2 transition-colors ${tab === t.id ? 'border-[#002046] text-[#002046]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
             {t.label}
@@ -165,7 +180,8 @@ export default function Settings() {
             {categories.map((c, i) => (
               <div key={i} className="flex items-center justify-between px-4 py-3 bg-slate-50 rounded border border-slate-200">
                 <span className="font-semibold text-[#002046] text-sm">{c}</span>
-                <div className="w-2 h-2 rounded-full bg-[#002046] opacity-30" />
+                <button onClick={() => { if (window.confirm(`Delete category "${c}"?`)) deleteCategory(c) }}
+                  className="text-slate-300 hover:text-[#ba1a1a] transition-colors"><X size={14} /></button>
               </div>
             ))}
           </div>
@@ -192,9 +208,44 @@ export default function Settings() {
           </div>
         </div>
       )}
+
+      {tab === 'backup' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h3 className="font-bold text-[#002046] mb-2">Data Backup</h3>
+            <p className="text-sm text-slate-500 mb-4">Download all your store data as a JSON backup file. You can restore it later.</p>
+            <button onClick={exportAllData} className="flex items-center gap-2 bg-[#002046] text-white px-5 py-2.5 rounded font-bold hover:bg-[#1b365d] transition-colors btn-pop">
+              <Download size={18} /> Download Backup
+            </button>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h3 className="font-bold text-[#002046] mb-2">Restore Data</h3>
+            <p className="text-sm text-slate-500 mb-4">Upload a previously downloaded backup file to restore all data. <strong className="text-[#ba1a1a]">Warning: This will replace all current data!</strong></p>
+            <input ref={importRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
+            <button onClick={() => importRef.current?.click()} className="flex items-center gap-2 bg-[#775a19] text-white px-5 py-2.5 rounded font-bold hover:bg-[#5a4213] transition-colors btn-pop">
+              <Upload size={18} /> Upload & Restore
+            </button>
+            {importStatus === 'success' && <p className="mt-3 text-sm text-[#2e7d32] font-bold flex items-center gap-1"><CircleCheckBig size={15} /> Data restored successfully!</p>}
+            {importStatus === 'error' && <p className="mt-3 text-sm text-[#ba1a1a] font-bold">❌ Invalid backup file. Please check and try again.</p>}
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-6 border-2 border-red-100">
+            <h3 className="font-bold text-[#ba1a1a] mb-2">Reset All Data</h3>
+            <p className="text-sm text-slate-500 mb-4">This will permanently delete all your data and restore factory defaults. <strong>This action cannot be undone!</strong></p>
+            <button onClick={() => {
+              if (window.confirm('⚠️ Are you SURE? This will delete ALL your data including bills, customers, products, and settings!')) {
+                if (window.confirm('FINAL WARNING: All data will be permanently deleted. Continue?')) {
+                  resetAllData()
+                  alert('All data has been reset to defaults.')
+                }
+              }
+            }} className="flex items-center gap-2 bg-[#ba1a1a] text-white px-5 py-2.5 rounded font-bold hover:bg-[#8c1414] transition-colors">
+              <Trash2 size={18} /> Reset Everything
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
-
-// Used in profile section
-import { User } from 'lucide-react'
