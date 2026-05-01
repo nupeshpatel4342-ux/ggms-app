@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAppContext } from '../context/AppContext'
-import { Search, Plus, X, CircleCheckBig, Printer, UserPlus, Phone, ShoppingCart, Download, MessageCircle } from 'lucide-react'
+import { Search, Plus, X, CircleCheckBig, Printer, UserPlus, Phone, ShoppingCart, Download, MessageCircle, Package } from 'lucide-react'
 import { printBillPDF, shareBillWhatsApp, downloadBillPDF } from '../utils/billPdf'
 
 function QuickAddCustomerModal({ onAdd, onClose }) {
@@ -179,7 +179,7 @@ function BillPrintModal({ bill, customer, profile, onClose }) {
 }
 
 export default function POS() {
-  const { products, customers, addCustomer, processBill, profile } = useAppContext()
+  const { products, customers, addCustomer, processBill, profile, agencies } = useAppContext()
   const [cart, setCart] = useState([])
   const [search, setSearch] = useState('')
   const [custSearch, setCustSearch] = useState('')
@@ -190,6 +190,8 @@ export default function POS() {
   const [showAddCust, setShowAddCust] = useState(false)
   const [showBillPrint, setShowBillPrint] = useState(false)
   const [lastBill, setLastBill] = useState(null)
+  const [billingMode, setBillingMode] = useState('retail')
+  const [editBillData, setEditBillData] = useState(null)
   const searchRef = useRef(null)
   const custRef = useRef(null)
 
@@ -199,12 +201,42 @@ export default function POS() {
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
-  const filteredProducts = search
-    ? products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode?.includes(search))
+  useEffect(() => {
+    const savedEdit = localStorage.getItem('ggms_edit_bill')
+    if (savedEdit) {
+      try {
+        const parsed = JSON.parse(savedEdit)
+        setEditBillData(parsed)
+        setBillingMode(parsed.billType === 'wholesale' ? 'wholesale' : 'retail')
+        setCart(parsed.items || [])
+        setPaymentMode(parsed.paymentMode || 'Cash')
+        setDiscount(parsed.discount || 0)
+        if (parsed.customerId) {
+          const cust = customers.find(c => c.id === parsed.customerId)
+          if (cust) {
+            setSelectedCustomer(cust)
+            setCustSearch(cust.name)
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load edit bill:', e)
+      }
+      localStorage.removeItem('ggms_edit_bill')
+    }
+  }, [customers])
+
+  const availableProducts = billingMode === 'wholesale'
+    ? products.filter(p => p.agencyId)
     : products
 
+  const filteredProducts = search
+    ? availableProducts.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode?.includes(search))
+    : availableProducts
+
+  const availableCustomers = customers.filter(c => c.type === billingMode)
+
   const matchedCustomers = custSearch
-    ? customers.filter(c => c.name.toLowerCase().includes(custSearch.toLowerCase()) || c.mobile.includes(custSearch))
+    ? availableCustomers.filter(c => c.name.toLowerCase().includes(custSearch.toLowerCase()) || c.mobile.includes(custSearch))
     : []
 
   const addToCart = (product) => {
@@ -253,12 +285,13 @@ export default function POS() {
       items: cart,
       customerId: selectedCustomer?.id || null,
       paymentMode,
+      billType: billingMode,
       subtotal,
       tax,
       discount: parseFloat(discount || 0),
       total,
       udharAmount: paymentMode === 'Udhar' ? total : 0,
-    })
+    }, editBillData?.id, editBillData?.date)
 
     setLastBill({ ...bill, shopName: profile?.shopName })
     setShowBillPrint(true)
@@ -267,6 +300,7 @@ export default function POS() {
     setCustSearch('')
     setPaymentMode('Cash')
     setDiscount(0)
+    setEditBillData(null)
   }
 
   return (
@@ -275,15 +309,30 @@ export default function POS() {
       <div className="flex-1 flex flex-col gap-4">
         <div className="flex justify-between items-end">
           <div>
-            <h2 className="text-3xl font-black text-[#002046] tracking-tight">Billing / POS</h2>
-            <p className="text-slate-500 text-sm mt-1">Create bills and process transactions.</p>
+            <h2 className="text-3xl font-black text-[#002046] tracking-tight">
+              {editBillData ? `Editing Bill: ${editBillData.id}` : 'Billing / POS'}
+            </h2>
+            <p className="text-slate-500 text-sm mt-1">
+              {editBillData ? 'Modify the contents of this bill and checkout to save changes.' : 'Create bills and process transactions.'}
+            </p>
+          </div>
+          <div className="flex bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+            <button onClick={() => { setBillingMode('retail'); setCart([]); setSelectedCustomer(null); setCustSearch(''); setEditBillData(null) }}
+              className={`px-5 py-2.5 text-sm font-bold transition-colors flex items-center gap-2 ${billingMode === 'retail' ? 'bg-[#002046] text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
+              <ShoppingCart size={16} /> Retail
+            </button>
+            <button onClick={() => { setBillingMode('wholesale'); setCart([]); setSelectedCustomer(null); setCustSearch(''); setEditBillData(null) }}
+              className={`px-5 py-2.5 text-sm font-bold transition-colors flex items-center gap-2 ${billingMode === 'wholesale' ? 'bg-[#775a19] text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
+              <Package size={16} /> Wholesale
+            </button>
           </div>
         </div>
 
         {/* Cart Items */}
         <div className="bg-white rounded-lg shadow-sm flex-1 overflow-hidden flex flex-col">
-          <div className="p-4 border-b border-slate-200 bg-slate-50">
-            <h3 className="font-bold text-[#002046]">Current Bill</h3>
+          <div className="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+            <h3 className="font-bold text-[#002046]">{billingMode === 'wholesale' ? '📦 Wholesale Bill' : '🛒 Retail Bill'}</h3>
+            {billingMode === 'wholesale' && <span className="text-xs font-bold text-[#775a19] bg-[#ffddb9] px-2 py-1 rounded">WHOLESALE</span>}
           </div>
           <div className="flex-1 overflow-y-auto p-4">
             {cart.length === 0 ? (
@@ -438,7 +487,7 @@ export default function POS() {
         </div>
       </div>
 
-      {showAddCust && <QuickAddCustomerModal onAdd={(c) => { const cust = addCustomer(c); setSelectedCustomer(cust); setCustSearch(cust.name); setShowCustDropdown(false); setShowAddCust(false) }} onClose={() => setShowAddCust(false)} />}
+      {showAddCust && <QuickAddCustomerModal onAdd={(c) => { const cust = addCustomer({ ...c, type: billingMode }); setSelectedCustomer(cust); setCustSearch(cust.name); setShowCustDropdown(false); setShowAddCust(false) }} onClose={() => setShowAddCust(false)} />}
       {showBillPrint && lastBill && <BillPrintModal bill={lastBill} customer={customers.find(c => c.id === lastBill.customerId)} profile={profile} onClose={() => { setShowBillPrint(false); setLastBill(null); searchRef.current?.focus() }} />}
     </div>
   )

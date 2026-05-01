@@ -29,6 +29,7 @@ function sanitizeProduct(p) {
     unit: String(p.unit ?? 'pcs'),
     barcode: String(p.barcode ?? ''),
     expiryDate: p.expiryDate ? String(p.expiryDate) : '',
+    agencyId: p.agencyId ? String(p.agencyId) : '',
   }
 }
 
@@ -40,6 +41,7 @@ function sanitizeCustomer(c) {
     mobile: String(c.mobile ?? ''),
     address: String(c.address ?? ''),
     udhar: Math.max(0, parseFloat(c.udhar) || 0),
+    type: ['retail', 'wholesale'].includes(c.type) ? c.type : 'retail',
   }
 }
 
@@ -74,6 +76,7 @@ function sanitizeBill(b) {
   return {
     id: String(b.id ?? 'BILL-000000'),
     date: b.date ? String(b.date) : new Date().toISOString(),
+    billType: ['retail', 'wholesale'].includes(b.billType) ? b.billType : 'retail',
     items,
     customerId: b.customerId ? String(b.customerId) : null,
     paymentMode: ['Cash', 'UPI', 'Udhar'].includes(b.paymentMode) ? b.paymentMode : 'Cash',
@@ -137,6 +140,38 @@ function sanitizeProfile(p) {
   }
 }
 
+function sanitizeAgency(a) {
+  if (!a || typeof a !== 'object') return null
+  return {
+    id: String(a.id ?? Date.now()),
+    name: String(a.name ?? 'Unknown Agency'),
+    contact: String(a.contact ?? ''),
+    address: String(a.address ?? ''),
+    area: String(a.area ?? ''),
+    gstin: String(a.gstin ?? ''),
+    status: ['active', 'inactive'].includes(a.status) ? a.status : 'active',
+    notes: String(a.notes ?? ''),
+    createdAt: a.createdAt ? String(a.createdAt) : new Date().toISOString(),
+  }
+}
+
+function sanitizeAgencySale(s) {
+  if (!s || typeof s !== 'object') return null
+  return {
+    id: String(s.id ?? Date.now()),
+    agencyId: String(s.agencyId ?? ''),
+    date: s.date ? String(s.date) : new Date().toISOString(),
+    productName: String(s.productName ?? ''),
+    quantity: Math.max(0, parseFloat(s.quantity) || 0),
+    unit: String(s.unit ?? 'pcs'),
+    rate: Math.max(0, parseFloat(s.rate) || 0),
+    amount: Math.max(0, parseFloat(s.amount) || 0),
+    commission: Math.max(0, parseFloat(s.commission) || 0),
+    paymentStatus: ['paid', 'pending', 'partial'].includes(s.paymentStatus) ? s.paymentStatus : 'pending',
+    notes: String(s.notes ?? ''),
+  }
+}
+
 function sanitizeArray(arr, fn) {
   return Array.isArray(arr) ? arr.map(fn).filter(Boolean) : []
 }
@@ -167,6 +202,8 @@ const DEFAULT_SUPPLIERS = [
   { id: '2', name: 'MegaMart Wholesale', contact: '9000100022', address: '', pendingPayment: 0 },
 ]
 
+const DEFAULT_AGENCIES = []
+
 const DEFAULT_CATEGORIES = ['Grocery', 'Oil', 'Snacks', 'Spices', 'Beverages', 'Dairy', 'Other']
 
 const DEFAULT_PROFILE = {
@@ -189,6 +226,8 @@ export function AppProvider({ children }) {
   const [bills, setBills] = useState(() => sanitizeArray(loadFromStorage('ggms_bills', []), sanitizeBill))
   const [purchases, setPurchases] = useState(() => sanitizeArray(loadFromStorage('ggms_purchases', []), sanitizePurchase))
   const [stockAdjustments, setStockAdjustments] = useState(() => sanitizeArray(loadFromStorage('ggms_stock_adjustments', []), sanitizeStockAdjustment))
+  const [agencies, setAgencies] = useState(() => sanitizeArray(loadFromStorage('ggms_agencies', DEFAULT_AGENCIES), sanitizeAgency))
+  const [agencySales, setAgencySales] = useState(() => sanitizeArray(loadFromStorage('ggms_agency_sales', []), sanitizeAgencySale))
 
   useEffect(() => saveToStorage('ggms_profile', profile), [profile])
   useEffect(() => saveToStorage('ggms_categories', categories), [categories])
@@ -198,6 +237,8 @@ export function AppProvider({ children }) {
   useEffect(() => saveToStorage('ggms_bills', bills), [bills])
   useEffect(() => saveToStorage('ggms_purchases', purchases), [purchases])
   useEffect(() => saveToStorage('ggms_stock_adjustments', stockAdjustments), [stockAdjustments])
+  useEffect(() => saveToStorage('ggms_agencies', agencies), [agencies])
+  useEffect(() => saveToStorage('ggms_agency_sales', agencySales), [agencySales])
 
   const value = {
     profile,
@@ -257,7 +298,7 @@ export function AppProvider({ children }) {
     },
 
     bills,
-    processBill: (billData) => {
+    processBill: (billData, originalId = null, originalDate = null) => {
       if (!billData || !Array.isArray(billData.items) || billData.items.length === 0) return null
 
       // Reduce stock
@@ -278,12 +319,12 @@ export function AppProvider({ children }) {
 
       const bill = sanitizeBill({
         ...billData,
-        id: 'BILL-' + Date.now().toString().slice(-6),
-        date: new Date().toISOString(),
+        id: originalId || 'BILL-' + Date.now().toString().slice(-6),
+        date: originalDate || new Date().toISOString(),
         status: 'active',
       })
       if (bill) {
-        setBills(prev => [bill, ...prev])
+        setBills(prev => [bill, ...prev.filter(b => b.id !== originalId)])
         return bill
       }
       return null
@@ -308,6 +349,30 @@ export function AppProvider({ children }) {
         }
         return b
       }))
+    },
+    deleteBill: (billId) => {
+      let billToDelete = null;
+      setBills(prev => {
+        billToDelete = prev.find(b => b.id === String(billId))
+        return prev.filter(b => b.id !== String(billId))
+      })
+
+      const targetBill = bills.find(b => b.id === String(billId)) || billToDelete
+      if (!targetBill) return
+
+      if (targetBill.status !== 'void') {
+        setProducts(prods => {
+          const updated = prods.map(p => ({ ...p }))
+          targetBill.items.forEach(item => {
+            const idx = updated.findIndex(p => p.id === String(item.id))
+            if (idx !== -1) updated[idx].stock += parseFloat(item.quantity) || 0
+          })
+          return updated
+        })
+        if (targetBill.paymentMode === 'Udhar' && targetBill.customerId) {
+          setCustomers(custs => custs.map(c => c.id === String(targetBill.customerId) ? { ...c, udhar: Math.max(0, c.udhar - targetBill.total) } : c))
+        }
+      }
     },
 
     purchases,
@@ -357,6 +422,30 @@ export function AppProvider({ children }) {
       setStockAdjustments(prev => [adj, ...prev])
     },
 
+    // Agency management
+    agencies,
+    addAgency: (a) => {
+      const agency = sanitizeAgency({ ...a, id: Date.now().toString(), createdAt: new Date().toISOString() })
+      if (agency) setAgencies(prev => [...prev, agency])
+    },
+    updateAgency: (id, data) => {
+      setAgencies(prev => prev.map(a => a.id === String(id) ? sanitizeAgency({ ...a, ...data }) ?? a : a))
+    },
+    deleteAgency: (id) => {
+      setAgencies(prev => prev.filter(a => a.id !== String(id)))
+      setAgencySales(prev => prev.filter(s => s.agencyId !== String(id)))
+    },
+
+    agencySales,
+    addAgencySale: (sale) => {
+      const s = sanitizeAgencySale({ ...sale, id: Date.now().toString() })
+      if (s) setAgencySales(prev => [s, ...prev])
+    },
+    updateAgencySale: (id, data) => {
+      setAgencySales(prev => prev.map(s => s.id === String(id) ? sanitizeAgencySale({ ...s, ...data }) ?? s : s))
+    },
+    deleteAgencySale: (id) => setAgencySales(prev => prev.filter(s => s.id !== String(id))),
+
     // Data backup & restore
     exportAllData: () => {
       const data = {
@@ -370,6 +459,8 @@ export function AppProvider({ children }) {
         bills: loadFromStorage('ggms_bills', []),
         purchases: loadFromStorage('ggms_purchases', []),
         stockAdjustments: loadFromStorage('ggms_stock_adjustments', []),
+        agencies: loadFromStorage('ggms_agencies', []),
+        agencySales: loadFromStorage('ggms_agency_sales', []),
       }
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
@@ -392,6 +483,8 @@ export function AppProvider({ children }) {
         if (data.bills) setBills(sanitizeArray(data.bills, sanitizeBill))
         if (data.purchases) setPurchases(sanitizeArray(data.purchases, sanitizePurchase))
         if (data.stockAdjustments) setStockAdjustments(sanitizeArray(data.stockAdjustments, sanitizeStockAdjustment))
+        if (data.agencies) setAgencies(sanitizeArray(data.agencies, sanitizeAgency))
+        if (data.agencySales) setAgencySales(sanitizeArray(data.agencySales, sanitizeAgencySale))
 
         return true
       } catch (err) {
@@ -408,6 +501,8 @@ export function AppProvider({ children }) {
       setBills([])
       setPurchases([])
       setStockAdjustments([])
+      setAgencies([])
+      setAgencySales([])
     },
   }
 

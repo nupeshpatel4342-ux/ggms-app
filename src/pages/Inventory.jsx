@@ -51,7 +51,7 @@ function StockAdjustModal({ product, onSubmit, onClose }) {
 }
 
 export default function Inventory() {
-  const { products, addProduct, updateProduct, deleteProduct, categories, addCategory, addStockAdjustment, profile } = useAppContext()
+  const { products, addProduct, updateProduct, deleteProduct, categories, addCategory, addStockAdjustment, profile, agencies } = useAppContext()
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId] = useState(null)
@@ -59,7 +59,7 @@ export default function Inventory() {
   const [newCatName, setNewCatName] = useState('')
   const [adjustProduct, setAdjustProduct] = useState(null)
   const [catFilter, setCatFilter] = useState('All')
-  const [form, setForm] = useState({ name: '', category: categories[0] || 'Grocery', purchasePrice: '', sellingPrice: '', stock: '', unit: 'kg', barcode: '', expiryDate: '' })
+  const [form, setForm] = useState({ name: '', category: categories[0] || 'Grocery', purchasePrice: '', sellingPrice: '', stock: '', unit: 'kg', barcode: '', expiryDate: '', agencyId: '' })
 
   const lowStockThreshold = profile?.lowStockAlert || 10
   const filtered = products.filter(p => {
@@ -85,7 +85,7 @@ export default function Inventory() {
       setForm({ ...product })
     } else {
       setEditId(null)
-      setForm({ name: '', category: categories[0] || 'Grocery', purchasePrice: '', sellingPrice: '', stock: '', unit: 'kg', barcode: '', expiryDate: '' })
+      setForm({ name: '', category: categories[0] || 'Grocery', purchasePrice: '', sellingPrice: '', stock: '', unit: 'kg', barcode: '', expiryDate: '', agencyId: '' })
     }
     setShowNewCat(false)
     setNewCatName('')
@@ -169,6 +169,7 @@ export default function Inventory() {
               <th className="p-4 font-semibold text-right">Purchase ₹</th>
               <th className="p-4 font-semibold text-right">Selling ₹</th>
               <th className="p-4 font-semibold text-center">Stock</th>
+              <th className="p-4 font-semibold text-center">Source</th>
               <th className="p-4 font-semibold text-center">Expiry</th>
               <th className="p-4 font-semibold text-right">Actions</th>
             </tr>
@@ -197,6 +198,9 @@ export default function Inventory() {
                     <span className="inline-flex items-center gap-1 bg-[#e8f5e9] text-[#2e7d32] px-2 py-1 rounded text-xs font-bold">{p.stock} {p.unit}</span>
                   )}
                 </td>
+                <td className="p-4 text-center">
+                  {p.agencyId ? <span className="text-[10px] font-bold text-[#775a19] bg-[#ffddb9] px-2 py-0.5 rounded">{agencies.find(a => a.id === p.agencyId)?.name || 'Agency'}</span> : <span className="text-[10px] text-slate-400">Own Stock</span>}
+                </td>
                 <td className="p-4 text-center">{getExpiryBadge(p.expiryDate)}</td>
                 <td className="p-4 text-right">
                   <div className="flex justify-end gap-1">
@@ -207,7 +211,7 @@ export default function Inventory() {
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && <tr><td colSpan="7" className="p-8 text-center text-slate-500">No products found.</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan="8" className="p-8 text-center text-slate-500">No products found.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -277,6 +281,16 @@ export default function Inventory() {
                   <input type="date" value={form.expiryDate} onChange={e => setForm({ ...form, expiryDate: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-300 rounded focus:outline-none focus:border-[#002046]" />
                 </div>
+                {agencies.length > 0 && (
+                  <div className="col-span-2">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Agency (Source)</label>
+                    <select value={form.agencyId} onChange={e => setForm({ ...form, agencyId: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded focus:outline-none focus:border-[#002046]">
+                      <option value="">Own Stock (No Agency)</option>
+                      {agencies.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
               <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
                 <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 font-semibold text-slate-600 hover:bg-slate-100 rounded transition-colors">Cancel</button>

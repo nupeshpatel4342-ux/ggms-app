@@ -6,6 +6,7 @@ import BillHistory from './pages/BillHistory'
 import Inventory from './pages/Inventory'
 import Customers from './pages/Customers'
 import Suppliers from './pages/Suppliers'
+import Agencies from './pages/Agencies'
 import PurchaseEntry from './pages/PurchaseEntry'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="/inventory" element={<Layout><Inventory /></Layout>} />
         <Route path="/customers" element={<Layout><Customers /></Layout>} />
         <Route path="/suppliers" element={<Layout><Suppliers /></Layout>} />
+        <Route path="/agencies" element={<Layout><Agencies /></Layout>} />
         <Route path="/purchase" element={<Layout><PurchaseEntry /></Layout>} />
         <Route path="/reports" element={<Layout><Reports /></Layout>} />
         <Route path="/settings" element={<Layout><Settings /></Layout>} />

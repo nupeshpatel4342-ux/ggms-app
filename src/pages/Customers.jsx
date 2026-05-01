@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAppContext } from '../context/AppContext'
-import { Search, Plus, Phone, Wallet, SquarePen, Trash2, X, FileText } from 'lucide-react'
+import { Search, Plus, Phone, Wallet, SquarePen, Trash2, X, FileText, ShoppingCart, Package } from 'lucide-react'
 
 export default function Customers() {
   const { customers, addCustomer, updateCustomer, deleteCustomer, settleCustomerUdhar, bills } = useAppContext()
@@ -12,8 +12,12 @@ export default function Customers() {
   const [settleAmt, setSettleAmt] = useState('')
   const [showHistory, setShowHistory] = useState(null)
   const [form, setForm] = useState({ name: '', mobile: '', address: '' })
+  const [custTypeFilter, setCustTypeFilter] = useState('all')
 
-  const filtered = customers.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.mobile.includes(search))
+  const filtered = customers.filter(c => {
+    if (custTypeFilter !== 'all' && c.type !== custTypeFilter) return false
+    return c.name.toLowerCase().includes(search.toLowerCase()) || c.mobile.includes(search)
+  })
 
   const openEdit = (c) => {
     setEditId(c.id)
@@ -42,6 +46,19 @@ export default function Customers() {
         <button onClick={() => { setEditId(null); setForm({ name: '', mobile: '', address: '' }); setShowAdd(true) }} className="bg-[#002046] text-white px-4 py-2 rounded-md font-bold flex items-center gap-2 hover:bg-[#1b365d] transition-colors shadow-lg">
           <Plus size={18} /> New Customer
         </button>
+      </div>
+
+      {/* Retail / Wholesale Tabs */}
+      <div className="flex gap-2 mb-6">
+        {[{ id: 'all', label: 'All Customers', icon: null }, { id: 'retail', label: 'Retail', icon: ShoppingCart }, { id: 'wholesale', label: 'Wholesale', icon: Package }].map(f => {
+          const Icon = f.icon
+          return (
+            <button key={f.id} onClick={() => setCustTypeFilter(f.id)}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 ${custTypeFilter === f.id ? (f.id === 'wholesale' ? 'bg-[#775a19] text-white' : 'bg-[#002046] text-white') : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}>
+              {Icon && <Icon size={16} />} {f.label} ({f.id === 'all' ? customers.length : customers.filter(c => c.type === f.id).length})
+            </button>
+          )
+        })}
       </div>
 
       <div className="grid grid-cols-3 gap-6 mb-8">
@@ -86,7 +103,10 @@ export default function Customers() {
                     </div>
                     <div>
                       <p className="font-bold text-[#002046]">{c.name}</p>
-                      <p className="text-xs text-slate-500">{c.address || `ID: CUST-${c.id.substring(c.id.length - 4)}`}</p>
+                      <p className="text-xs text-slate-500">
+                        {c.type === 'wholesale' ? <span className="text-[10px] font-bold text-[#775a19] bg-[#ffddb9] px-1.5 py-0.5 rounded mr-1">Wholesale</span> : <span className="text-[10px] font-bold text-[#002046] bg-[#f0eee7] px-1.5 py-0.5 rounded mr-1">Retail</span>}
+                        {c.address || `ID: CUST-${c.id.substring(c.id.length - 4)}`}
+                      </p>
                     </div>
                   </div>
                 </td>
@@ -141,6 +161,13 @@ export default function Customers() {
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Address</label>
                 <input type="text" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded focus:outline-none focus:border-[#002046]" placeholder="Optional" />
+              </div>
+              <div className="mb-4">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Customer Type</label>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setForm({ ...form, type: 'retail' })} className={`flex-1 py-2 rounded text-sm font-bold border transition-colors ${(!form.type || form.type === 'retail') ? 'bg-[#002046] text-white border-[#002046]' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'}`}>Retail</button>
+                  <button type="button" onClick={() => setForm({ ...form, type: 'wholesale' })} className={`flex-1 py-2 rounded text-sm font-bold border transition-colors ${form.type === 'wholesale' ? 'bg-[#775a19] text-white border-[#775a19]' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'}`}>Wholesale</button>
+                </div>
               </div>
               <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-slate-100">
                 <button type="button" onClick={() => { setShowAdd(false); setEditId(null) }} className="px-4 py-2 font-semibold text-slate-600 hover:bg-slate-100 rounded transition-colors">Cancel</button>

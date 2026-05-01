@@ -384,10 +384,226 @@ export function generateBillPDF(bill, customer, profile) {
 }
 
 /**
+ * Generate a wholesale invoice PDF (A4 size, professional invoice format)
+ */
+export function generateWholesalePDF(bill, customer, profile) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const W = 210
+  const M = 15
+  const PW = W - M * 2
+  let y = M
+
+  // ═══════ HEADER STRIP ═══════
+  doc.setFillColor(0, 32, 70) // #002046
+  doc.rect(0, 0, W, 40, 'F')
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(22)
+  doc.setTextColor(255, 255, 255)
+  doc.text((profile?.shopName || 'GGM&S Retail').toUpperCase(), M, 18)
+
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  if (profile?.address) doc.text(profile.address, M, 26)
+  const contactLine = [profile?.mobile ? 'Ph: ' + profile.mobile : '', profile?.gstin ? 'GSTIN: ' + profile.gstin : ''].filter(Boolean).join('  |  ')
+  if (contactLine) doc.text(contactLine, M, 33)
+
+  // Invoice label on right
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(28)
+  doc.text('INVOICE', W - M, 22, { align: 'right' })
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.text('WHOLESALE', W - M, 30, { align: 'right' })
+
+  doc.setTextColor(0, 0, 0)
+  y = 50
+
+  // ═══════ INVOICE DETAILS ═══════
+  const colL = M
+  const colR = W / 2 + 10
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(9)
+  doc.setTextColor(100, 100, 100)
+  doc.text('BILL TO:', colL, y)
+  doc.text('INVOICE DETAILS:', colR, y)
+  y += 6
+
+  doc.setTextColor(0, 0, 0)
+  doc.setFontSize(11)
+  doc.text(customer?.name || 'Walk-in Customer', colL, y)
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+
+  // Right side details
+  doc.text('Invoice No:', colR, y)
+  doc.setFont('helvetica', 'bold')
+  doc.text(bill.id, colR + 50, y)
+  y += 5
+
+  doc.setFont('helvetica', 'normal')
+  if (customer?.mobile) { doc.text('Mobile: ' + customer.mobile, colL, y) }
+  doc.text('Date:', colR, y)
+  doc.text(new Date(bill.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }), colR + 50, y)
+  y += 5
+
+  if (customer?.address) { doc.text('Address: ' + customer.address, colL, y) }
+  doc.text('Payment:', colR, y)
+  doc.text(bill.paymentMode, colR + 50, y)
+  y += 10
+
+  // ═══════ ITEMS TABLE ═══════
+  // Table header
+  doc.setFillColor(240, 240, 240)
+  doc.rect(M, y, PW, 8, 'F')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
+  doc.setTextColor(50, 50, 50)
+
+  const cols = { sr: M + 2, item: M + 12, hsn: M + 90, qty: M + 110, rate: M + 130, amount: W - M - 2 }
+  doc.text('SR', cols.sr, y + 5.5)
+  doc.text('ITEM DESCRIPTION', cols.item, y + 5.5)
+  doc.text('HSN', cols.hsn, y + 5.5)
+  doc.text('QTY', cols.qty, y + 5.5)
+  doc.text('RATE', cols.rate, y + 5.5)
+  doc.text('AMOUNT', cols.amount, y + 5.5, { align: 'right' })
+
+  doc.setDrawColor(0, 32, 70)
+  doc.setLineWidth(0.5)
+  doc.line(M, y + 8, W - M, y + 8)
+  y += 12
+
+  doc.setTextColor(0, 0, 0)
+  // Table rows
+  bill.items.forEach((item, i) => {
+    const amt = item.quantity * item.sellingPrice
+    const qtyStr = Number.isInteger(item.quantity) ? String(item.quantity) : item.quantity.toFixed(2)
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.text(String(i + 1), cols.sr + 3, y, { align: 'right' })
+    doc.setFont('helvetica', 'bold')
+    doc.text(item.name, cols.item, y)
+    doc.setFont('helvetica', 'normal')
+    doc.text('—', cols.hsn, y)
+    doc.text(qtyStr + ' ' + (item.unit || 'pcs'), cols.qty, y)
+    doc.text('Rs ' + item.sellingPrice.toFixed(2), cols.rate, y)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Rs ' + amt.toFixed(2), cols.amount, y, { align: 'right' })
+
+    y += 7
+    // Light line
+    doc.setDrawColor(220, 220, 220)
+    doc.setLineWidth(0.1)
+    doc.line(M, y - 2, W - M, y - 2)
+  })
+
+  // ═══════ TOTALS ═══════
+  y += 3
+  doc.setDrawColor(0, 32, 70)
+  doc.setLineWidth(0.5)
+  doc.line(M, y, W - M, y)
+  y += 7
+
+  const totX = M + 110
+  const totV = W - M - 2
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  doc.text('Subtotal:', totX, y)
+  doc.text('Rs ' + bill.subtotal.toFixed(2), totV, y, { align: 'right' })
+  y += 5.5
+
+  if (bill.tax > 0) {
+    const half = (bill.tax / 2).toFixed(2)
+    doc.text('CGST (2.5%):', totX, y)
+    doc.text('Rs ' + half, totV, y, { align: 'right' })
+    y += 5
+    doc.text('SGST (2.5%):', totX, y)
+    doc.text('Rs ' + half, totV, y, { align: 'right' })
+    y += 5.5
+  }
+
+  if (bill.discount > 0) {
+    doc.text('Discount:', totX, y)
+    doc.text('-Rs ' + bill.discount.toFixed(2), totV, y, { align: 'right' })
+    y += 5.5
+  }
+
+  // Grand Total box
+  doc.setFillColor(0, 32, 70)
+  doc.rect(totX - 5, y - 1, PW - totX + M + 5, 10, 'F')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(12)
+  doc.setTextColor(255, 255, 255)
+  doc.text('GRAND TOTAL', totX, y + 6)
+  doc.text('Rs ' + bill.total.toFixed(2), totV, y + 6, { align: 'right' })
+  doc.setTextColor(0, 0, 0)
+  y += 18
+
+  // ═══════ AMOUNT IN WORDS ═══════
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.setTextColor(100, 100, 100)
+  doc.text('Amount in words: Rupees ' + numberToWords(Math.round(bill.total)) + ' Only', M, y)
+  y += 10
+
+  // ═══════ TERMS & SIGNATURE ═══════
+  doc.setDrawColor(200, 200, 200)
+  doc.setLineWidth(0.3)
+  doc.line(M, y, W - M, y)
+  y += 6
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
+  doc.setTextColor(0, 0, 0)
+  doc.text('Terms & Conditions:', M, y)
+  y += 4
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7)
+  doc.setTextColor(100, 100, 100)
+  doc.text('1. Goods once sold will not be taken back or exchanged.', M, y); y += 3.5
+  doc.text('2. All disputes subject to local jurisdiction.', M, y); y += 3.5
+  doc.text('3. E. & O.E.', M, y)
+
+  // Signature area
+  doc.setTextColor(0, 0, 0)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.text('For ' + (profile?.shopName || 'GGM&S Retail'), W - M - 40, y - 7)
+  doc.line(W - M - 55, y + 8, W - M, y + 8)
+  doc.text('Authorized Signatory', W - M - 38, y + 12)
+
+  return doc
+}
+
+// Helper: number to words (basic)
+function numberToWords(n) {
+  if (n === 0) return 'Zero'
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+  if (n < 20) return ones[n]
+  if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '')
+  if (n < 1000) return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' and ' + numberToWords(n % 100) : '')
+  if (n < 100000) return numberToWords(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 ? ' ' + numberToWords(n % 1000) : '')
+  if (n < 10000000) return numberToWords(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 ? ' ' + numberToWords(n % 100000) : '')
+  return numberToWords(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 ? ' ' + numberToWords(n % 10000000) : '')
+}
+
+/**
+ * Auto-select PDF generator based on bill type
+ */
+function getDoc(bill, customer, profile) {
+  if (bill.billType === 'wholesale') return generateWholesalePDF(bill, customer, profile)
+  return generateBillPDF(bill, customer, profile)
+}
+
+/**
  * Print bill PDF - opens in new window with auto-print
  */
 export function printBillPDF(bill, customer, profile) {
-  const doc = generateBillPDF(bill, customer, profile)
+  const doc = getDoc(bill, customer, profile)
   doc.autoPrint()
   const blobUrl = doc.output('bloburl')
   window.open(blobUrl, '_blank')
@@ -397,7 +613,7 @@ export function printBillPDF(bill, customer, profile) {
  * Share bill via WhatsApp with PDF attachment
  */
 export function shareBillWhatsApp(bill, customer, profile) {
-  const doc = generateBillPDF(bill, customer, profile)
+  const doc = getDoc(bill, customer, profile)
   const pdfBlob = doc.output('blob')
   const fileName = 'Bill_' + bill.id + '.pdf'
 
@@ -425,6 +641,6 @@ export function shareBillWhatsApp(bill, customer, profile) {
  * Download bill PDF
  */
 export function downloadBillPDF(bill, customer, profile) {
-  const doc = generateBillPDF(bill, customer, profile)
+  const doc = getDoc(bill, customer, profile)
   doc.save('Bill_' + bill.id + '.pdf')
 }

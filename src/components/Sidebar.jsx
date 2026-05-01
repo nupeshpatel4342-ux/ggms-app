@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ShoppingCart, Package, Users, Truck, Download, FileText, Settings, Store, LogOut, User, History } from 'lucide-react'
+import { LayoutDashboard, ShoppingCart, Package, Users, Truck, Download, FileText, Settings, Store, LogOut, User, History, Building2 } from 'lucide-react'
 import { useAppContext } from '../context/AppContext'
 
 const navItems = [
@@ -9,6 +9,7 @@ const navItems = [
   { name: 'Inventory', icon: Package, path: '/inventory' },
   { name: 'Customers', icon: Users, path: '/customers' },
   { name: 'Suppliers', icon: Truck, path: '/suppliers' },
+  { name: 'Agencies', icon: Building2, path: '/agencies' },
   { name: 'Purchase Entry', icon: Download, path: '/purchase' },
   { name: 'Reports', icon: FileText, path: '/reports' },
   { name: 'Settings', icon: Settings, path: '/settings' },

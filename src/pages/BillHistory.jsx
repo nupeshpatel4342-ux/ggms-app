@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAppContext } from '../context/AppContext'
-import { Search, X, Printer, MessageCircle, Ban, Eye, FileText, Download } from 'lucide-react'
+import { Search, X, Printer, MessageCircle, Ban, Eye, FileText, Download, Trash2, SquarePen } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { printBillPDF, shareBillWhatsApp, downloadBillPDF } from '../utils/billPdf'
 
 function BillDetailModal({ bill, customer, profile, onClose, onVoid }) {
@@ -116,12 +117,13 @@ function BillDetailModal({ bill, customer, profile, onClose, onVoid }) {
     </div>
   )
 }
-
 export default function BillHistory() {
-  const { bills, customers, profile, voidBill } = useAppContext()
+  const { bills, customers, profile, voidBill, deleteBill } = useAppContext()
+  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [dateFilter, setDateFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [billTypeFilter, setBillTypeFilter] = useState('all')
   const [selectedBill, setSelectedBill] = useState(null)
 
   const now = new Date()
@@ -136,6 +138,9 @@ export default function BillHistory() {
     if (dateFilter === 'month' && d < monthAgo) return false
     if (statusFilter === 'active' && b.status === 'void') return false
     if (statusFilter === 'void' && b.status !== 'void') return false
+    if (statusFilter === 'udhar' && (b.paymentMode !== 'Udhar' || b.status === 'void')) return false
+    if (billTypeFilter === 'retail' && b.billType !== 'retail') return false
+    if (billTypeFilter === 'wholesale' && b.billType !== 'wholesale') return false
     if (search) {
       const q = search.toLowerCase()
       const cust = customers.find(c => c.id === b.customerId)
@@ -188,9 +193,15 @@ export default function BillHistory() {
             ))}
           </div>
           <div className="flex gap-1">
-            {[{ id: 'all', label: 'All Status' }, { id: 'active', label: 'Active' }, { id: 'void', label: 'Voided' }].map(f => (
+            {[{ id: 'all', label: 'All Types' }, { id: 'retail', label: '🛒 Retail' }, { id: 'wholesale', label: '📦 Wholesale' }].map(f => (
+              <button key={f.id} onClick={() => setBillTypeFilter(f.id)}
+                className={`px-3 py-1.5 rounded text-xs font-bold transition-colors ${billTypeFilter === f.id ? 'bg-[#775a19] text-white' : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-100'}`}>{f.label}</button>
+            ))}
+          </div>
+          <div className="flex gap-1">
+            {[{ id: 'all', label: 'All Status' }, { id: 'active', label: 'Active' }, { id: 'udhar', label: '💰 Udhar' }, { id: 'void', label: 'Voided' }].map(f => (
               <button key={f.id} onClick={() => setStatusFilter(f.id)}
-                className={`px-3 py-1.5 rounded text-xs font-bold transition-colors ${statusFilter === f.id ? 'bg-[#002046] text-white' : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-100'}`}>{f.label}</button>
+                className={`px-3 py-1.5 rounded text-xs font-bold transition-colors ${statusFilter === f.id ? (f.id === 'udhar' ? 'bg-[#ba1a1a] text-white' : 'bg-[#002046] text-white') : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-100'}`}>{f.label}</button>
             ))}
           </div>
         </div>
@@ -213,14 +224,60 @@ export default function BillHistory() {
               const cust = customers.find(c => c.id === b.customerId)
               return (
                 <tr key={b.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${b.status === 'void' ? 'opacity-60' : ''}`}>
-                  <td className="p-4"><div className="flex items-center gap-2"><FileText size={16} className="text-slate-400" /><span className="font-bold text-[#002046] text-sm">{b.id}</span></div></td>
+                  <td className="p-4"><div className="flex items-center gap-2"><FileText size={16} className="text-slate-400" /><span className="font-bold text-[#002046] text-sm">{b.id}</span>{b.billType === 'wholesale' && <span className="text-[9px] font-bold text-[#775a19] bg-[#ffddb9] px-1.5 py-0.5 rounded">W</span>}</div></td>
                   <td className="p-4"><p className="text-sm font-medium text-slate-700">{new Date(b.date).toLocaleDateString()}</p><p className="text-[10px] text-slate-400">{new Date(b.date).toLocaleTimeString()}</p></td>
                   <td className="p-4 text-sm text-slate-600">{cust?.name || <span className="text-slate-400 italic">Walk-in</span>}</td>
                   <td className="p-4 text-center text-sm font-medium text-slate-600">{b.items.length}</td>
                   <td className="p-4 text-center"><span className={`px-2 py-1 rounded text-xs font-bold ${b.paymentMode === 'Cash' ? 'bg-[#e8f5e9] text-[#2e7d32]' : b.paymentMode === 'UPI' ? 'bg-[#ffddb9] text-[#775a19]' : 'bg-[#ffdad6] text-[#ba1a1a]'}`}>{b.paymentMode}</span></td>
                   <td className="p-4 text-right font-bold text-[#002046]">₹{b.total.toFixed(2)}</td>
                   <td className="p-4 text-center">{b.status === 'void' ? <span className="px-2 py-1 rounded text-xs font-bold bg-red-100 text-red-600">VOID</span> : <span className="px-2 py-1 rounded text-xs font-bold bg-emerald-50 text-emerald-600">Active</span>}</td>
-                  <td className="p-4 text-right"><button onClick={() => setSelectedBill(b)} className="p-2 text-slate-400 hover:text-[#002046] transition-colors" title="View / Re-print"><Eye size={18} /></button></td>
+                  <td className="p-4 text-right">
+                    <div className="flex justify-end gap-1">
+                      {b.paymentMode === 'Udhar' && b.status !== 'void' && cust?.mobile && (
+                        <button onClick={() => {
+                          const shopName = profile?.shopName || 'GGM&S Retail'
+                          const billDate = new Date(b.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                          const itemLines = b.items.map((item, idx) => {
+                            const qty = Number.isInteger(item.quantity) ? item.quantity : item.quantity.toFixed(2)
+                            return `${idx + 1}. ${item.name} — ${qty} ${item.unit || 'pcs'} × ₹${item.sellingPrice.toFixed(0)} = *₹${(item.quantity * item.sellingPrice).toFixed(2)}*`
+                          }).join('\n')
+                          const lines = [
+                            `🙏 *Udhar Payment Reminder*`,
+                            ``,
+                            `Namaskar *${cust.name}* ji,`,
+                            ``,
+                            `Aapno niche no bill *${shopName}* par udhar baaki che:`,
+                            ``,
+                            `📋 *Bill No:* ${b.id}`,
+                            `📅 *Date:* ${billDate}`,
+                            ``,
+                            `*━━━ Bill Details ━━━*`,
+                            itemLines,
+                            `*━━━━━━━━━━━━━━━━━*`,
+                            ``,
+                            b.discount > 0 ? `Subtotal: ₹${b.subtotal.toFixed(2)}` : '',
+                            b.discount > 0 ? `Discount: -₹${b.discount.toFixed(2)}` : '',
+                            `💰 *Baaki Amount: ₹${b.total.toFixed(2)}*`,
+                            ``,
+                            `Kripya tamari suvidha ae jaldi thi payment karo.`,
+                            ``,
+                            `Dhanyavaad! 🙏`,
+                            `*${shopName}*`,
+                            profile?.mobile ? `📞 ${profile.mobile}` : '',
+                          ].filter(Boolean).join('\n')
+                          window.open(`https://wa.me/91${cust.mobile}?text=${encodeURIComponent(lines)}`, '_blank')
+                        }} className="px-2 py-1 bg-[#25D366] text-white rounded text-xs font-bold hover:bg-[#1ebd5a] transition-colors inline-flex items-center gap-1" title="Send Udhar Reminder">
+                          <MessageCircle size={12} /> Remind
+                        </button>
+                      )}
+                      <button onClick={() => setSelectedBill(b)} className="p-2 text-slate-400 hover:text-[#002046] transition-colors" title="View / Re-print"><Eye size={18} /></button>
+                      <button onClick={() => {
+                        localStorage.setItem('ggms_edit_bill', JSON.stringify(b))
+                        navigate('/pos')
+                      }} className="p-2 text-slate-400 hover:text-[#775a19] transition-colors" title="Edit Bill"><SquarePen size={18} /></button>
+                      <button onClick={() => deleteBill(b.id)} className="p-2 text-slate-400 hover:text-[#ba1a1a] transition-colors" title="Delete Bill"><Trash2 size={18} /></button>
+                    </div>
+                  </td>
                 </tr>
               )
             })}
