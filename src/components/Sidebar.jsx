@@ -1,6 +1,7 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, ShoppingCart, Package, Users, Truck, Download, FileText, Settings, Store, LogOut, User, History, Building2 } from 'lucide-react'
 import { useAppContext } from '../context/AppContext'
+import { useAuth } from '../context/AuthContext'
 
 const navItems = [
   { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
@@ -17,8 +18,14 @@ const navItems = [
 
 export default function Sidebar() {
   const location = useLocation()
+  const navigate = useNavigate()
   const { profile } = useAppContext()
+  const { logout, user } = useAuth()
 
+  const handleLogout = async () => {
+    await logout()
+    navigate('/login')
+  }
   return (
     <aside className="w-64 bg-[#002046] text-white flex flex-col h-screen fixed top-0 left-0">
       <div className="p-6 flex items-center gap-3 border-b border-white/10">
@@ -64,7 +71,7 @@ export default function Sidebar() {
             <p className="text-[10px] text-slate-400 truncate">{profile?.shopName || 'GGM&S Retail'}</p>
           </div>
         </Link>
-        <button className="flex items-center gap-3 w-full px-6 py-3 text-sm text-slate-300 hover:text-[#ba1a1a] hover:bg-white/5 transition-colors">
+        <button onClick={handleLogout} className="flex items-center gap-3 w-full px-6 py-3 text-sm text-slate-300 hover:text-[#ba1a1a] hover:bg-white/5 transition-colors">
           <LogOut size={18} /> Logout
         </button>
       </div>

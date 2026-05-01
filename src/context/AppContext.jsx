@@ -1,4 +1,7 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
+import { auth, db } from '../firebase'
+import { onAuthStateChanged } from 'firebase/auth'
+import { doc, getDoc, setDoc } from 'firebase/firestore'
 
 const AppContext = createContext()
 
@@ -239,6 +242,62 @@ export function AppProvider({ children }) {
   useEffect(() => saveToStorage('ggms_stock_adjustments', stockAdjustments), [stockAdjustments])
   useEffect(() => saveToStorage('ggms_agencies', agencies), [agencies])
   useEffect(() => saveToStorage('ggms_agency_sales', agencySales), [agencySales])
+
+  // ─── Cloud Sync ───
+  const [cloudLoaded, setCloudLoaded] = useState(false)
+  const syncTimerRef = useRef(null)
+
+  // Load data from Firestore when user is logged in
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser && !cloudLoaded) {
+        try {
+          const snap = await getDoc(doc(db, 'stores', firebaseUser.uid))
+          if (snap.exists()) {
+            const data = snap.data()
+            if (data.profile) setProfile(sanitizeProfile(data.profile))
+            if (data.categories) setCategories(sanitizeCategories(data.categories))
+            if (data.products) setProducts(sanitizeArray(data.products, sanitizeProduct))
+            if (data.customers) setCustomers(sanitizeArray(data.customers, sanitizeCustomer))
+            if (data.suppliers) setSuppliers(sanitizeArray(data.suppliers, sanitizeSupplier))
+            if (data.bills) setBills(sanitizeArray(data.bills, sanitizeBill))
+            if (data.purchases) setPurchases(sanitizeArray(data.purchases, sanitizePurchase))
+            if (data.stockAdjustments) setStockAdjustments(sanitizeArray(data.stockAdjustments, sanitizeStockAdjustment))
+            if (data.agencies) setAgencies(sanitizeArray(data.agencies, sanitizeAgency))
+            if (data.agencySales) setAgencySales(sanitizeArray(data.agencySales, sanitizeAgencySale))
+          }
+          setCloudLoaded(true)
+        } catch (err) {
+          console.error('Cloud load error:', err)
+          setCloudLoaded(true) // continue even on error
+        }
+      }
+    })
+    return unsub
+  }, [cloudLoaded])
+
+  // Auto-save to Firestore when any data changes (debounced)
+  const saveToCloud = useCallback(() => {
+    const user = auth.currentUser
+    if (!user || !cloudLoaded) return
+
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current)
+    syncTimerRef.current = setTimeout(async () => {
+      try {
+        await setDoc(doc(db, 'stores', user.uid), {
+          profile, categories, products, customers, suppliers,
+          bills, purchases, stockAdjustments, agencies, agencySales,
+          lastUpdated: new Date().toISOString(),
+        }, { merge: true })
+      } catch (err) {
+        console.error('Cloud save error:', err)
+      }
+    }, 2000) // 2 second debounce
+  }, [profile, categories, products, customers, suppliers, bills, purchases, stockAdjustments, agencies, agencySales, cloudLoaded])
+
+  useEffect(() => {
+    if (cloudLoaded) saveToCloud()
+  }, [saveToCloud, cloudLoaded])
 
   const value = {
     profile,
