@@ -250,27 +250,55 @@ export function AppProvider({ children }) {
   // Load data from Firestore when user is logged in
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser && !cloudLoaded) {
-        try {
-          const snap = await getDoc(doc(db, 'stores', firebaseUser.uid))
-          if (snap.exists()) {
-            const data = snap.data()
-            if (data.profile) setProfile(sanitizeProfile(data.profile))
-            if (data.categories) setCategories(sanitizeCategories(data.categories))
-            if (data.products) setProducts(sanitizeArray(data.products, sanitizeProduct))
-            if (data.customers) setCustomers(sanitizeArray(data.customers, sanitizeCustomer))
-            if (data.suppliers) setSuppliers(sanitizeArray(data.suppliers, sanitizeSupplier))
-            if (data.bills) setBills(sanitizeArray(data.bills, sanitizeBill))
-            if (data.purchases) setPurchases(sanitizeArray(data.purchases, sanitizePurchase))
-            if (data.stockAdjustments) setStockAdjustments(sanitizeArray(data.stockAdjustments, sanitizeStockAdjustment))
-            if (data.agencies) setAgencies(sanitizeArray(data.agencies, sanitizeAgency))
-            if (data.agencySales) setAgencySales(sanitizeArray(data.agencySales, sanitizeAgencySale))
+      if (firebaseUser) {
+        if (!cloudLoaded) {
+          try {
+            const snap = await getDoc(doc(db, 'stores', firebaseUser.uid))
+            if (snap.exists()) {
+              const data = snap.data()
+              if (data.profile) setProfile(sanitizeProfile(data.profile))
+              if (data.categories) setCategories(sanitizeCategories(data.categories))
+              if (data.products) setProducts(sanitizeArray(data.products, sanitizeProduct))
+              if (data.customers) setCustomers(sanitizeArray(data.customers, sanitizeCustomer))
+              if (data.suppliers) setSuppliers(sanitizeArray(data.suppliers, sanitizeSupplier))
+              if (data.bills) setBills(sanitizeArray(data.bills, sanitizeBill))
+              if (data.purchases) setPurchases(sanitizeArray(data.purchases, sanitizePurchase))
+              if (data.stockAdjustments) setStockAdjustments(sanitizeArray(data.stockAdjustments, sanitizeStockAdjustment))
+              if (data.agencies) setAgencies(sanitizeArray(data.agencies, sanitizeAgency))
+              if (data.agencySales) setAgencySales(sanitizeArray(data.agencySales, sanitizeAgencySale))
+            } else {
+              // New user - clear any leftover local storage data to prevent merging accounts
+              setProfile(sanitizeProfile(DEFAULT_PROFILE))
+              setCategories([...DEFAULT_CATEGORIES])
+              setProducts(DEFAULT_PRODUCTS.map(p => sanitizeProduct(p)))
+              setCustomers(DEFAULT_CUSTOMERS.map(c => sanitizeCustomer(c)))
+              setSuppliers(DEFAULT_SUPPLIERS.map(s => sanitizeSupplier(s)))
+              setBills([])
+              setPurchases([])
+              setStockAdjustments([])
+              setAgencies([])
+              setAgencySales([])
+            }
+            setCloudLoaded(true)
+          } catch (err) {
+            console.error('Cloud load error:', err)
+            setCloudLoaded(true) // continue even on error
           }
-          setCloudLoaded(true)
-        } catch (err) {
-          console.error('Cloud load error:', err)
-          setCloudLoaded(true) // continue even on error
         }
+      } else {
+        // User logged out - clean up local state and storage immediately
+        setProfile(sanitizeProfile(DEFAULT_PROFILE))
+        setCategories([...DEFAULT_CATEGORIES])
+        setProducts(DEFAULT_PRODUCTS.map(p => sanitizeProduct(p)))
+        setCustomers(DEFAULT_CUSTOMERS.map(c => sanitizeCustomer(c)))
+        setSuppliers(DEFAULT_SUPPLIERS.map(s => sanitizeSupplier(s)))
+        setBills([])
+        setPurchases([])
+        setStockAdjustments([])
+        setAgencies([])
+        setAgencySales([])
+        setCloudLoaded(false)
+        localStorage.clear()
       }
     })
     return unsub
