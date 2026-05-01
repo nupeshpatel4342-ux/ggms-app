@@ -131,15 +131,18 @@ function sanitizeStockAdjustment(a) {
 
 function sanitizeProfile(p) {
   if (!p || typeof p !== 'object') return {}
+  const ownerName = String(p.ownerName ?? '')
+  const shopName = String(p.shopName ?? '')
   return {
-    ownerName: String(p.ownerName ?? 'Store Owner'),
-    shopName: String(p.shopName ?? 'GGM&S Retail'),
+    ownerName: ownerName || 'Store Owner',
+    shopName: shopName || 'GGM&S Retail',
     mobile: String(p.mobile ?? ''),
     address: String(p.address ?? ''),
     gstin: String(p.gstin ?? ''),
     upiId: String(p.upiId ?? ''),
     photo: p.photo ? String(p.photo) : null,
     lowStockAlert: Math.max(1, parseInt(p.lowStockAlert) || 10),
+    isSetup: Boolean(p.isSetup ?? (ownerName !== '' && ownerName !== 'Store Owner')),
   }
 }
 
@@ -210,14 +213,15 @@ const DEFAULT_AGENCIES = []
 const DEFAULT_CATEGORIES = ['Grocery', 'Oil', 'Snacks', 'Spices', 'Beverages', 'Dairy', 'Other']
 
 const DEFAULT_PROFILE = {
-  ownerName: 'Store Owner',
-  shopName: 'GGM&S Retail',
+  ownerName: '',
+  shopName: '',
   mobile: '',
   address: '',
   gstin: '',
   upiId: '',
   photo: null,
   lowStockAlert: 10,
+  isSetup: false,
 }
 
 export function AppProvider({ children }) {
@@ -328,6 +332,7 @@ export function AppProvider({ children }) {
   }, [saveToCloud, cloudLoaded])
 
   const value = {
+    cloudLoaded,
     profile,
     updateProfile: (updates) => setProfile(prev => sanitizeProfile({ ...prev, ...updates })),
 

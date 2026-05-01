@@ -1,7 +1,9 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
+import { useAppContext } from './context/AppContext'
 import Layout from './components/Layout'
 import Login from './pages/Login'
+import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
 import POS from './pages/POS'
 import BillHistory from './pages/BillHistory'
@@ -14,10 +16,12 @@ import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import { Loader2 } from 'lucide-react'
 
-function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth()
+function ProtectedRoute({ children, requireSetup = true }) {
+  const { user, loading: authLoading } = useAuth()
+  const { profile, cloudLoaded } = useAppContext()
+  const location = useLocation()
 
-  if (loading) {
+  if (authLoading || (user && !cloudLoaded)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#001229] via-[#002046] to-[#003366] flex items-center justify-center">
         <div className="text-center">
@@ -28,7 +32,12 @@ function ProtectedRoute({ children }) {
     )
   }
 
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) return <Navigate to="/login" replace state={{ from: location }} />
+
+  if (requireSetup && profile && !profile.isSetup) {
+    return <Navigate to="/onboarding" replace />
+  }
+
   return children
 }
 
@@ -37,6 +46,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginRoute />} />
+        <Route path="/onboarding" element={<ProtectedRoute requireSetup={false}><Onboarding /></ProtectedRoute>} />
         <Route path="/" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
         <Route path="/pos" element={<ProtectedRoute><Layout><POS /></Layout></ProtectedRoute>} />
         <Route path="/bills" element={<ProtectedRoute><Layout><BillHistory /></Layout></ProtectedRoute>} />
