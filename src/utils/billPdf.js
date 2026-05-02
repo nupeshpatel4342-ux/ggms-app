@@ -9,7 +9,6 @@ export function generateBillPDF(bill, customer, profile) {
   const M = 4   // margin
   const PW = W - M * 2  // printable width
 
-  const hasGST = bill.tax > 0
   const hasDiscount = bill.discount > 0
   const hasCustomer = !!customer
   const hasGSTIN = !!profile?.gstin
@@ -53,7 +52,6 @@ export function generateBillPDF(bill, customer, profile) {
   // Totals
   h += 5     // Total items/qty
   h += 5     // Subtotal
-  if (hasGST) h += 8    // CGST + SGST
   if (hasDiscount) h += 5
   h += 5     // round off (may or may not show, safe to include)
 
@@ -268,19 +266,6 @@ export function generateBillPDF(bill, customer, profile) {
   doc.text('Rs ' + bill.subtotal.toFixed(2), RX, y, { align: 'right' })
   y += 4.5
 
-  // CGST + SGST
-  if (hasGST) {
-    const halfTax = (bill.tax / 2).toFixed(2)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
-    doc.text('CGST (2.5%)', LX, y)
-    doc.text('Rs ' + halfTax, RX, y, { align: 'right' })
-    y += 3.5
-    doc.text('SGST (2.5%)', LX, y)
-    doc.text('Rs ' + halfTax, RX, y, { align: 'right' })
-    y += 4.5
-  }
-
   // Discount
   if (hasDiscount) {
     doc.setFont('helvetica', 'normal')
@@ -291,7 +276,7 @@ export function generateBillPDF(bill, customer, profile) {
   }
 
   // Round off
-  const rawTotal = bill.subtotal + (bill.tax || 0) - (bill.discount || 0)
+  const rawTotal = bill.subtotal - (bill.discount || 0)
   const roundOff = bill.total - rawTotal
   if (Math.abs(roundOff) >= 0.01) {
     doc.setFont('helvetica', 'normal')
@@ -514,16 +499,6 @@ export function generateWholesalePDF(bill, customer, profile) {
   doc.text('Subtotal:', totX, y)
   doc.text('Rs ' + bill.subtotal.toFixed(2), totV, y, { align: 'right' })
   y += 5.5
-
-  if (bill.tax > 0) {
-    const half = (bill.tax / 2).toFixed(2)
-    doc.text('CGST (2.5%):', totX, y)
-    doc.text('Rs ' + half, totV, y, { align: 'right' })
-    y += 5
-    doc.text('SGST (2.5%):', totX, y)
-    doc.text('Rs ' + half, totV, y, { align: 'right' })
-    y += 5.5
-  }
 
   if (bill.discount > 0) {
     doc.text('Discount:', totX, y)

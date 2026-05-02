@@ -6,9 +6,8 @@ import { printBillPDF, shareBillWhatsApp, downloadBillPDF } from '../utils/billP
 
 function BillDetailModal({ bill, customer, profile, onClose, onVoid }) {
   const totalQty = bill.items.reduce((s, i) => s + i.quantity, 0)
-  const rawTotal = bill.subtotal + (bill.tax || 0) - (bill.discount || 0)
+  const rawTotal = bill.subtotal - (bill.discount || 0)
   const roundOff = (Math.round(rawTotal) - rawTotal).toFixed(2)
-  const halfTax = bill.tax > 0 ? (bill.tax / 2).toFixed(2) : null
 
   return (
     <div className="fixed inset-0 bg-black/60 flex flex-col items-center justify-center z-50 p-4">
@@ -67,12 +66,6 @@ function BillDetailModal({ bill, customer, profile, onClose, onVoid }) {
           <p className="text-[8px] text-gray-500 py-1">Total Items: {bill.items.length} &nbsp;|&nbsp; Total Qty: {Number.isInteger(totalQty) ? totalQty : totalQty.toFixed(2)}</p>
           <div className="py-1 space-y-1 text-[10px]">
             <div className="flex justify-between font-semibold"><span>Subtotal</span><span>₹{bill.subtotal.toFixed(2)}</span></div>
-            {halfTax && (
-              <>
-                <div className="flex justify-between text-[9px] text-gray-600"><span>CGST (2.5%)</span><span>₹{halfTax}</span></div>
-                <div className="flex justify-between text-[9px] text-gray-600"><span>SGST (2.5%)</span><span>₹{halfTax}</span></div>
-              </>
-            )}
             {bill.discount > 0 && <div className="flex justify-between text-[9px] text-red-600"><span>Discount</span><span>-₹{bill.discount.toFixed(2)}</span></div>}
             {Math.abs(parseFloat(roundOff)) >= 0.01 && <div className="flex justify-between text-[8px] text-gray-500"><span>Round Off</span><span>₹{roundOff}</span></div>}
           </div>

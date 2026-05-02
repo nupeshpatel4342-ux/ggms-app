@@ -36,9 +36,8 @@ function QuickAddCustomerModal({ onAdd, onClose }) {
 
 function BillPrintModal({ bill, customer, profile, onClose }) {
   const totalQty = bill.items.reduce((s, i) => s + i.quantity, 0)
-  const rawTotal = bill.subtotal + (bill.tax || 0) - (bill.discount || 0)
+  const rawTotal = bill.subtotal - (bill.discount || 0)
   const roundOff = (Math.round(rawTotal) - rawTotal).toFixed(2)
-  const halfTax = bill.tax > 0 ? (bill.tax / 2).toFixed(2) : null
 
   return (
     <div className="fixed inset-0 bg-black/60 flex flex-col items-center justify-center z-50 p-4">
@@ -112,12 +111,6 @@ function BillPrintModal({ bill, customer, profile, onClose }) {
           {/* Totals */}
           <div className="py-1 space-y-1 text-[10px]">
             <div className="flex justify-between font-semibold"><span>Subtotal</span><span>₹{bill.subtotal.toFixed(2)}</span></div>
-            {halfTax && (
-              <>
-                <div className="flex justify-between text-[9px] text-gray-600"><span>CGST (2.5%)</span><span>₹{halfTax}</span></div>
-                <div className="flex justify-between text-[9px] text-gray-600"><span>SGST (2.5%)</span><span>₹{halfTax}</span></div>
-              </>
-            )}
             {bill.discount > 0 && (
               <div className="flex justify-between text-[9px] text-red-600"><span>Discount</span><span>-₹{bill.discount.toFixed(2)}</span></div>
             )}
@@ -274,8 +267,8 @@ export default function POS() {
   const removeFromCart = (id) => setCart(prev => prev.filter(c => c.id !== id))
 
   const subtotal = cart.reduce((s, c) => s + c.sellingPrice * c.quantity, 0)
-  const tax = subtotal * 0.05
-  const total = subtotal + tax - parseFloat(discount || 0)
+  const tax = 0
+  const total = subtotal - parseFloat(discount || 0)
 
   const handleCheckout = () => {
     if (cart.length === 0) return alert('Cart is empty!')
@@ -440,7 +433,6 @@ export default function POS() {
 
               <div>
                 <div className="flex justify-between text-sm text-slate-600 mb-1"><span>Subtotal</span><span>₹{subtotal.toFixed(2)}</span></div>
-                <div className="flex justify-between text-sm text-slate-600 mb-1"><span>Tax (GST)</span><span>₹{tax.toFixed(2)}</span></div>
                 <div className="flex justify-between text-sm text-[#ba1a1a] mb-2 font-semibold"><span>Discount</span><span>-₹{parseFloat(discount || 0).toFixed(2)}</span></div>
                 <div className="flex justify-between text-2xl font-black text-[#002046] border-t border-slate-300 pt-2 mb-4"><span>Total</span><span>₹{total.toFixed(2)}</span></div>
                 <button onClick={handleCheckout} disabled={cart.length === 0}
@@ -492,5 +484,4 @@ export default function POS() {
     </div>
   )
 }
-
 
