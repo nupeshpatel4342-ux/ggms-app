@@ -297,41 +297,44 @@ export default function POS() {
   }
 
   return (
-    <div className="flex gap-6 h-[calc(100vh-4rem)]">
+    <div className="flex flex-col xl:flex-row gap-6 min-h-[calc(100vh-4rem)] xl:h-[calc(100vh-4rem)]">
       {/* Left side - Cart */}
       <div className="flex-1 flex flex-col gap-4">
         <div className="flex justify-between items-end">
           <div>
-            <h2 className="text-3xl font-black text-[#002046] tracking-tight">
+            <h2 className="text-3xl font-black page-title">
               {editBillData ? `Editing Bill: ${editBillData.id}` : 'Billing / POS'}
             </h2>
             <p className="text-slate-500 text-sm mt-1">
               {editBillData ? 'Modify the contents of this bill and checkout to save changes.' : 'Create bills and process transactions.'}
             </p>
           </div>
-          <div className="flex bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+          <div className="flex glass-panel rounded-lg overflow-hidden">
             <button onClick={() => { setBillingMode('retail'); setCart([]); setSelectedCustomer(null); setCustSearch(''); setEditBillData(null) }}
-              className={`px-5 py-2.5 text-sm font-bold transition-colors flex items-center gap-2 ${billingMode === 'retail' ? 'bg-[#002046] text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
+              className={`px-5 py-2.5 text-sm font-bold transition-all flex items-center gap-2 ${billingMode === 'retail' ? 'bg-[#002046] text-white shadow-inner' : 'text-slate-600 hover:bg-white'}`}>
               <ShoppingCart size={16} /> Retail
             </button>
             <button onClick={() => { setBillingMode('wholesale'); setCart([]); setSelectedCustomer(null); setCustSearch(''); setEditBillData(null) }}
-              className={`px-5 py-2.5 text-sm font-bold transition-colors flex items-center gap-2 ${billingMode === 'wholesale' ? 'bg-[#775a19] text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
+              className={`px-5 py-2.5 text-sm font-bold transition-all flex items-center gap-2 ${billingMode === 'wholesale' ? 'bg-[#775a19] text-white shadow-inner' : 'text-slate-600 hover:bg-white'}`}>
               <Package size={16} /> Wholesale
             </button>
           </div>
         </div>
 
         {/* Cart Items */}
-        <div className="bg-white rounded-lg shadow-sm flex-1 overflow-hidden flex flex-col">
+        <div className="table-shell flex-1 overflow-hidden flex flex-col">
           <div className="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-            <h3 className="font-bold text-[#002046]">{billingMode === 'wholesale' ? '📦 Wholesale Bill' : '🛒 Retail Bill'}</h3>
+            <h3 className="font-bold text-[#002046] flex items-center gap-2">
+              {billingMode === 'wholesale' ? <Package size={17} /> : <ShoppingCart size={17} />}
+              {billingMode === 'wholesale' ? 'Wholesale Bill' : 'Retail Bill'}
+            </h3>
             {billingMode === 'wholesale' && <span className="text-xs font-bold text-[#775a19] bg-[#ffddb9] px-2 py-1 rounded">WHOLESALE</span>}
           </div>
           <div className="flex-1 overflow-y-auto p-4">
             {cart.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-slate-400">
                 <ShoppingCart size={48} className="mb-3 opacity-30" />
-                <p className="text-sm">Cart is empty — search or tap products to add</p>
+                <p className="text-sm">Cart is empty - search or tap products to add</p>
               </div>
             ) : (
               <table className="w-full text-left">
@@ -355,7 +358,7 @@ export default function POS() {
                           <button onClick={() => updateQty(item.id, -1)} className="w-7 h-7 rounded bg-slate-200 text-[#002046] font-bold hover:bg-slate-300 transition-colors">−</button>
                           <input type="number" min="0.001" step={['kg','liter','gm'].includes(item.unit) ? '0.5' : '1'} value={item.quantity}
                             onChange={e => setDirectQty(item.id, e.target.value)}
-                            className="w-14 text-center font-bold text-[#002046] border border-slate-300 rounded py-1 text-sm focus:outline-none focus:border-[#002046]" />
+                            className="w-14 text-center font-bold text-[#002046] border border-slate-300 rounded py-1 text-sm focus:outline-none focus:border-[#002046] field-focus" />
                           <button onClick={() => updateQty(item.id, 1)} className="w-7 h-7 rounded bg-slate-200 text-[#002046] font-bold hover:bg-slate-300 transition-colors">+</button>
                         </div>
                       </td>
@@ -383,7 +386,7 @@ export default function POS() {
                     onChange={e => { setCustSearch(e.target.value); setShowCustDropdown(true); if (!e.target.value) setSelectedCustomer(null) }}
                     onFocus={() => setShowCustDropdown(true)}
                     onBlur={() => setTimeout(() => setShowCustDropdown(false), 200)}
-                    className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded focus:outline-none focus:border-[#002046] text-sm" />
+                    className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded focus:outline-none focus:border-[#002046] text-sm field-focus" />
                   {showCustDropdown && custSearch && (
                     <div className="absolute top-full left-0 right-0 z-20 bg-white border border-slate-200 rounded shadow-xl mt-1 max-h-44 overflow-y-auto animate-fade-in">
                       {matchedCustomers.length === 0 ? (
@@ -419,7 +422,7 @@ export default function POS() {
                 <div className="flex gap-2">
                   {['Cash', 'UPI', 'Udhar'].map(m => (
                     <button key={m} onClick={() => setPaymentMode(m)}
-                      className={`flex-1 py-2 rounded text-sm font-bold border transition-colors ${
+                      className={`flex-1 py-2 rounded text-sm font-bold border transition-all btn-pop ${
                         paymentMode === m ? 'bg-[#002046] text-white border-[#002046]' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
                       }`}>{m}</button>
                   ))}
@@ -427,7 +430,7 @@ export default function POS() {
                 <div className="mt-4">
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Discount (₹)</label>
                   <input type="number" min="0" value={discount} onChange={e => setDiscount(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded focus:outline-none focus:border-[#002046]" />
+                    className="w-full px-3 py-2 border border-slate-300 rounded focus:outline-none focus:border-[#002046] field-focus" />
                 </div>
               </div>
 
@@ -436,7 +439,7 @@ export default function POS() {
                 <div className="flex justify-between text-sm text-[#ba1a1a] mb-2 font-semibold"><span>Discount</span><span>-₹{parseFloat(discount || 0).toFixed(2)}</span></div>
                 <div className="flex justify-between text-2xl font-black text-[#002046] border-t border-slate-300 pt-2 mb-4"><span>Total</span><span>₹{total.toFixed(2)}</span></div>
                 <button onClick={handleCheckout} disabled={cart.length === 0}
-                  className="w-full bg-[#2e7d32] text-white py-3 rounded-lg font-bold text-lg hover:bg-[#1b5e20] transition-colors flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                  className="w-full bg-[#2e7d32] text-white py-3 rounded-lg font-bold text-lg hover:bg-[#1b5e20] transition-all flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed btn-pop shine-hover">
                   <Printer size={20} /> Checkout & Print
                 </button>
               </div>
@@ -446,23 +449,23 @@ export default function POS() {
       </div>
 
       {/* Right side - Product search */}
-      <div className="w-96 flex flex-col gap-4">
-        <div className="bg-white rounded-lg shadow-sm p-4">
+      <div className="w-full xl:w-96 flex flex-col gap-4">
+        <div className="soft-card p-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input ref={searchRef} type="text" placeholder="Search product or scan barcode (F1)"
               value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 rounded-lg border-2 border-slate-300 focus:outline-none focus:border-[#002046] text-[#002046] font-bold placeholder:font-normal" />
+              className="w-full pl-10 pr-4 py-3 rounded-lg border-2 border-slate-300 focus:outline-none focus:border-[#002046] text-[#002046] font-bold placeholder:font-normal field-focus" />
           </div>
         </div>
 
-        <div className="flex-1 bg-white rounded-lg shadow-sm p-4 overflow-y-auto">
+        <div className="flex-1 table-shell p-4 overflow-y-auto">
           <h4 className="font-bold text-[#002046] mb-4">Products</h4>
           <div className="grid grid-cols-2 gap-3">
             {filteredProducts.slice(0, 20).map(p => (
               <button key={p.id} onClick={() => addToCart(p)} disabled={p.stock <= 0}
-                className={`p-3 rounded border text-left flex flex-col justify-between h-24 hover:border-[#002046] transition-colors ${
-                  p.stock <= 0 ? 'opacity-50 border-slate-200 cursor-not-allowed' : 'border-slate-200 cursor-pointer bg-slate-50 hover:bg-[#f6f3ec]'
+                className={`p-3 rounded border text-left flex flex-col justify-between h-24 hover:border-[#002046] transition-all btn-pop ${
+                  p.stock <= 0 ? 'opacity-50 border-slate-200 cursor-not-allowed' : 'border-slate-200 cursor-pointer bg-slate-50 hover:bg-[#f6f3ec] hover:shadow-md'
                 }`}>
                 <div>
                   <p className="text-sm font-bold text-[#002046] line-clamp-2 leading-tight">{p.name}</p>

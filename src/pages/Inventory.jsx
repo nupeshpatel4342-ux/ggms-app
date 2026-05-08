@@ -120,7 +120,7 @@ export default function Inventory() {
     <div>
       <div className="flex justify-between items-end mb-6">
         <div>
-          <h2 className="text-3xl font-black text-[#002046] tracking-tight">Inventory</h2>
+          <h2 className="text-3xl font-black page-title">Inventory</h2>
           <p className="text-slate-500 text-sm mt-1">Manage products, stock levels, pricing and expiry.</p>
         </div>
         <button onClick={() => openModal()} className="bg-[#002046] text-white px-4 py-2 rounded-md font-bold flex items-center gap-2 hover:bg-[#1b365d] transition-colors shadow-lg btn-pop">
@@ -128,36 +128,36 @@ export default function Inventory() {
         </button>
       </div>
 
-      <div className="grid grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg border-l-4 border-[#002046] shadow-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+        <div className="soft-card p-6 border-l-4 border-[#002046] animate-card-enter shine-hover">
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Total Products</p>
           <h3 className="text-3xl font-black text-[#002046]">{products.length}</h3>
         </div>
-        <div className="bg-white p-6 rounded-lg border-l-4 border-[#ba1a1a] shadow-sm">
+        <div className="soft-card p-6 border-l-4 border-[#ba1a1a] animate-card-enter shine-hover [animation-delay:60ms]">
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Low Stock Alerts</p>
           <h3 className="text-3xl font-black text-[#ba1a1a]">{products.filter(p => p.stock < lowStockThreshold).length}</h3>
         </div>
-        <div className="bg-white p-6 rounded-lg border-l-4 border-[#775a19] shadow-sm">
+        <div className="soft-card p-6 border-l-4 border-[#775a19] animate-card-enter shine-hover [animation-delay:120ms]">
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Inventory Value</p>
           <h3 className="text-3xl font-black text-[#002046]">₹{products.reduce((s, p) => s + p.purchasePrice * p.stock, 0).toLocaleString()}</h3>
         </div>
-        <div className="bg-white p-6 rounded-lg border-l-4 border-amber-500 shadow-sm">
+        <div className="soft-card p-6 border-l-4 border-amber-500 animate-card-enter shine-hover [animation-delay:180ms]">
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Expiring / Expired</p>
           <h3 className="text-3xl font-black text-amber-600">{expiringProducts.length + expiredProducts.length}</h3>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+      <div className="table-shell">
         <div className="p-4 border-b border-slate-200 flex flex-wrap gap-4 items-center bg-slate-50">
-          <div className="relative w-80">
+          <div className="relative w-full md:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input type="text" placeholder="Search products, categories or barcode..." value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-md border border-slate-300 focus:outline-none focus:border-[#002046] focus:ring-1 focus:ring-[#002046]" />
+              className="w-full pl-10 pr-4 py-2 rounded-md border border-slate-300 focus:outline-none focus:border-[#002046] focus:ring-1 focus:ring-[#002046] field-focus" />
           </div>
           <div className="flex gap-1 flex-wrap">
-            <button onClick={() => setCatFilter('All')} className={`px-3 py-1.5 rounded text-xs font-bold transition-colors ${catFilter === 'All' ? 'bg-[#002046] text-white' : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-100'}`}>All</button>
+            <button onClick={() => setCatFilter('All')} className={`px-3 py-1.5 rounded text-xs font-bold transition-all btn-pop ${catFilter === 'All' ? 'bg-[#002046] text-white' : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-100'}`}>All</button>
             {categories.map(c => (
-              <button key={c} onClick={() => setCatFilter(c)} className={`px-3 py-1.5 rounded text-xs font-bold transition-colors ${catFilter === c ? 'bg-[#002046] text-white' : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-100'}`}>{c}</button>
+              <button key={c} onClick={() => setCatFilter(c)} className={`px-3 py-1.5 rounded text-xs font-bold transition-all btn-pop ${catFilter === c ? 'bg-[#002046] text-white' : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-100'}`}>{c}</button>
             ))}
           </div>
         </div>

@@ -43,68 +43,73 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-3xl font-black text-[#002046] tracking-tight">Dashboard</h2>
-        <p className="text-slate-500 text-sm mt-1">Welcome back! Here's your store overview.</p>
+      <div className="mb-6 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h2 className="text-3xl font-black page-title">Dashboard</h2>
+          <p className="text-slate-500 text-sm mt-1">Welcome back! Here's your store overview.</p>
+        </div>
+        <div className="glass-panel rounded-lg px-4 py-2 text-sm font-bold text-[#002046]">
+          {todayBills.length} bills today
+        </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-5 gap-4 mb-8">
-        <div className="bg-white p-5 rounded-lg border-l-4 border-[#002046] shadow-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-8">
+        <div className="soft-card p-5 border-l-4 border-[#002046] animate-card-enter shine-hover">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Today's Revenue</p>
               <h3 className="text-2xl font-black text-[#002046]">₹{todayRevenue.toLocaleString()}</h3>
               <p className="text-[10px] text-slate-400 mt-1">{todayBills.length} bills</p>
             </div>
-            <div className="w-9 h-9 bg-[#f0eee7] rounded flex items-center justify-center"><IndianRupee size={18} className="text-[#002046]" /></div>
+            <div className="w-9 h-9 bg-[#f0eee7] icon-tile flex items-center justify-center"><IndianRupee size={18} className="text-[#002046]" /></div>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-lg border-l-4 border-[#2e7d32] shadow-sm">
+        <div className="soft-card p-5 border-l-4 border-[#2e7d32] animate-card-enter shine-hover [animation-delay:60ms]">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Today's Profit</p>
               <h3 className={`text-2xl font-black ${todayProfit >= 0 ? 'text-[#2e7d32]' : 'text-[#ba1a1a]'}`}>₹{todayProfit.toLocaleString()}</h3>
             </div>
-            <div className="w-9 h-9 bg-[#e8f5e9] rounded flex items-center justify-center"><TrendingUp size={18} className="text-[#2e7d32]" /></div>
+            <div className="w-9 h-9 bg-[#e8f5e9] icon-tile flex items-center justify-center"><TrendingUp size={18} className="text-[#2e7d32]" /></div>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-lg border-l-4 border-[#775a19] shadow-sm">
+        <div className="soft-card p-5 border-l-4 border-[#775a19] animate-card-enter shine-hover [animation-delay:120ms]">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Revenue</p>
               <h3 className="text-2xl font-black text-[#002046]">₹{totalRevenue.toLocaleString()}</h3>
             </div>
-            <div className="w-9 h-9 bg-[#ffddb9] rounded flex items-center justify-center"><TrendingUp size={18} className="text-[#775a19]" /></div>
+            <div className="w-9 h-9 bg-[#ffddb9] icon-tile flex items-center justify-center"><TrendingUp size={18} className="text-[#775a19]" /></div>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-lg border-l-4 border-[#ba1a1a] shadow-sm">
+        <div className="soft-card p-5 border-l-4 border-[#ba1a1a] animate-card-enter shine-hover [animation-delay:180ms]">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Pending Udhar</p>
               <h3 className="text-2xl font-black text-[#ba1a1a]">₹{totalUdhar.toLocaleString()}</h3>
             </div>
-            <div className="w-9 h-9 bg-[#ffdad6] rounded flex items-center justify-center"><IndianRupee size={18} className="text-[#ba1a1a]" /></div>
+            <div className="w-9 h-9 bg-[#ffdad6] icon-tile flex items-center justify-center"><IndianRupee size={18} className="text-[#ba1a1a]" /></div>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-lg border-l-4 border-purple-500 shadow-sm">
+        <div className="soft-card p-5 border-l-4 border-indigo-500 animate-card-enter shine-hover [animation-delay:240ms]">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Supplier Due</p>
-              <h3 className="text-2xl font-black text-purple-600">₹{supplierPending.toLocaleString()}</h3>
+              <h3 className="text-2xl font-black text-indigo-600">₹{supplierPending.toLocaleString()}</h3>
             </div>
-            <div className="w-9 h-9 bg-purple-50 rounded flex items-center justify-center"><Package size={18} className="text-purple-500" /></div>
+            <div className="w-9 h-9 bg-indigo-50 icon-tile flex items-center justify-center"><Package size={18} className="text-indigo-500" /></div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
         {/* Recent Bills */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="table-shell">
           <div className="p-4 border-b border-slate-200 bg-slate-50">
             <h3 className="font-bold text-[#002046] flex items-center gap-2"><ShoppingCart size={16} /> Recent Bills</h3>
           </div>
@@ -136,7 +141,7 @@ export default function Dashboard() {
         </div>
 
         {/* Low Stock Alerts */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="table-shell">
           <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center gap-2">
             <TriangleAlert size={16} className="text-[#ba1a1a]" />
             <h3 className="font-bold text-[#002046]">Low Stock ({lowStockProducts.length})</h3>
@@ -161,7 +166,7 @@ export default function Dashboard() {
         {/* Expiry Alerts + Top Products */}
         <div className="space-y-6">
           {(expiredProducts.length > 0 || expiringProducts.length > 0) && (
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="table-shell">
               <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center gap-2">
                 <Clock size={16} className="text-amber-600" />
                 <h3 className="font-bold text-[#002046]">Expiry Alerts</h3>
@@ -186,7 +191,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div className="table-shell">
             <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center gap-2">
               <TrendingUp size={16} className="text-[#2e7d32]" />
               <h3 className="font-bold text-[#002046]">Today's Top Products</h3>
